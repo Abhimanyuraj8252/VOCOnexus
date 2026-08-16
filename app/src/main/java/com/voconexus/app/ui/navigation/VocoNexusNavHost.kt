@@ -447,7 +447,9 @@ fun VocoNexusNavHost(
         // Destination: Tools Hub
         composable(route = Screen.Tools.route) {
             com.voconexus.app.ui.screens.tools.ToolsScreen(
-                onNavigateSpeedPitch = { navController.navigate(Screen.SpeedPitchController.route) }
+                onNavigateSpeedPitch = { navController.navigate(Screen.SpeedPitchController.route) },
+                onNavigateAudioExtractor = { navController.navigate(Screen.AudioExtractor.route) },
+                onNavigateFormatConverter = { navController.navigate(Screen.FormatConverter.route) }
             )
         }
 
@@ -459,6 +461,32 @@ fun VocoNexusNavHost(
                 factory = com.voconexus.app.ui.screens.speedpitch.SpeedPitchViewModel.Factory(context)
             )
             com.voconexus.app.ui.screens.speedpitch.SpeedPitchScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // Destination: Audio Extractor Tool
+        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
+        composable(route = Screen.AudioExtractor.route) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: com.voconexus.app.ui.screens.audioextractor.AudioExtractorViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.voconexus.app.ui.screens.audioextractor.AudioExtractorViewModel.Factory(context)
+            )
+            com.voconexus.app.ui.screens.audioextractor.AudioExtractorScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // Destination: Format Converter & Compressor Tool
+        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
+        composable(route = Screen.FormatConverter.route) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: com.voconexus.app.ui.screens.convertercompressor.ConverterCompressorViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.voconexus.app.ui.screens.convertercompressor.ConverterCompressorViewModel.Factory(context)
+            )
+            com.voconexus.app.ui.screens.convertercompressor.ConverterCompressorScreen(
                 viewModel = viewModel,
                 onBackClick = { navController.popBackStack() }
             )

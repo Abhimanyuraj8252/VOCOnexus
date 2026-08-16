@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -42,7 +43,9 @@ data class ToolItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolsScreen(
-    onNavigateSpeedPitch: () -> Unit
+    onNavigateSpeedPitch: () -> Unit,
+    onNavigateAudioExtractor: () -> Unit,
+    onNavigateFormatConverter: () -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
 
@@ -50,6 +53,26 @@ fun ToolsScreen(
 
     val toolsList = remember {
         listOf(
+            ToolItem(
+                id = "format_converter",
+                title = "Format Converter & Compressor",
+                description = "Convert any video/audio between MP4, MKV, AVI, MOV, WebM, MP3, AAC, WAV, FLAC with CRF size compression.",
+                icon = Icons.Default.Transform,
+                category = "Audio & Video",
+                tags = listOf("Converter", "Compressor", "Estimator", "TargetMB"),
+                isAvailable = true,
+                gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF06B6D4))
+            ),
+            ToolItem(
+                id = "audio_extractor",
+                title = "Audio Extractor (Video to Audio)",
+                description = "Extract audio from any video (MP4, MKV, AVI, MOV) into MP3, AAC, WAV, FLAC with 0.1s instant copy & trim.",
+                icon = Icons.Default.Audiotrack,
+                category = "Audio & Video",
+                tags = listOf("Extract", "Video2Audio", "MP3", "Lossless"),
+                isAvailable = true,
+                gradientColors = listOf(Color(0xFF10B981), Color(0xFF059669))
+            ),
             ToolItem(
                 id = "speed_pitch",
                 title = "Speed & Pitch Controller",
@@ -59,16 +82,6 @@ fun ToolsScreen(
                 tags = listOf("Speed", "Pitch", "Trim", "EQ", "Export"),
                 isAvailable = true,
                 gradientColors = listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
-            ),
-            ToolItem(
-                id = "format_converter",
-                title = "Format Converter & Compressor",
-                description = "Convert any media between MP3, WAV, AAC, FLAC, MP4, MKV, AVI & compress file size.",
-                icon = Icons.Default.Transform,
-                category = "Audio & Video",
-                tags = listOf("Converter", "Compressor", "FFmpeg"),
-                isAvailable = false,
-                gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF06B6D4))
             ),
             ToolItem(
                 id = "audio_merger",
@@ -96,9 +109,9 @@ fun ToolsScreen(
                 description = "Separate vocal tracks from music instruments to create karaoke, acapella, or backing tracks.",
                 icon = Icons.Default.MicOff,
                 category = "Voice",
-                tags = listOf("Stem Splitter", "Karaoke", "Acapella"),
+                tags = listOf("Separate", "Karaoke", "Stem"),
                 isAvailable = false,
-                gradientColors = listOf(Color(0xFFF59E0B), Color(0xFFD97706))
+                gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFFA855F7))
             )
         )
     }
@@ -179,8 +192,10 @@ fun ToolsScreen(
                 ToolCardItem(
                     tool = tool,
                     onLaunch = {
-                        if (tool.id == "speed_pitch") {
-                            onNavigateSpeedPitch()
+                        when (tool.id) {
+                            "speed_pitch" -> onNavigateSpeedPitch()
+                            "audio_extractor" -> onNavigateAudioExtractor()
+                            "format_converter" -> onNavigateFormatConverter()
                         }
                     }
                 )
@@ -267,7 +282,7 @@ private fun ToolCardItem(
                             )
                             Spacer(Modifier.width(4.dp))
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(14.dp)

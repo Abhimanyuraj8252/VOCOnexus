@@ -200,6 +200,9 @@ private fun ModelCard(
     onBenchmarkClick: () -> Unit,
     onSetActiveClick: () -> Unit
 ) {
+    val isCloudOrSystem = model.id in setOf("edge-tts", "google-cloud-tts", "android-tts") || model.sizeBytes == 0L
+    val effectiveStatus = if (isCloudOrSystem) ModelStatus.INSTALLED else model.status
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -215,16 +218,18 @@ private fun ModelCard(
                     Text("Engine: ${model.engineId} • v${model.version}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                val statusBadgeText = when (model.status) {
-                    ModelStatus.INSTALLED -> "Installed"
-                    ModelStatus.DOWNLOADING -> "Downloading..."
-                    ModelStatus.VERIFYING -> "Verifying..."
+                val statusBadgeText = when {
+                    model.id == "android-tts" -> "Built-in System"
+                    model.id == "edge-tts" || model.id == "google-cloud-tts" || isCloudOrSystem -> "Online Cloud"
+                    effectiveStatus == ModelStatus.INSTALLED -> "Installed"
+                    effectiveStatus == ModelStatus.DOWNLOADING -> "Downloading..."
+                    effectiveStatus == ModelStatus.VERIFYING -> "Verifying..."
                     else -> "Not Installed"
                 }
 
-                val statusColor = when (model.status) {
-                    ModelStatus.INSTALLED -> MaterialTheme.colorScheme.primary
-                    ModelStatus.DOWNLOADING -> MaterialTheme.colorScheme.tertiary
+                val statusColor = when {
+                    isCloudOrSystem || effectiveStatus == ModelStatus.INSTALLED -> MaterialTheme.colorScheme.primary
+                    effectiveStatus == ModelStatus.DOWNLOADING -> MaterialTheme.colorScheme.tertiary
                     else -> MaterialTheme.colorScheme.secondary
                 }
 
@@ -237,16 +242,12 @@ private fun ModelCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        if (model.status == ModelStatus.INSTALLED) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
-                        } else {
-                            Icon(Icons.Default.Download, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
-                        }
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
                         Text(statusBadgeText, style = MaterialTheme.typography.labelSmall, color = statusColor)
                     }
                 }
 
-                if (model.status == ModelStatus.INSTALLED) {
+                if (effectiveStatus == ModelStatus.INSTALLED && !isCloudOrSystem) {
                     IconButton(onClick = onDeleteClick) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete Model", tint = MaterialTheme.colorScheme.error)
                     }
@@ -257,19 +258,22 @@ private fun ModelCard(
 
             // Details row
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Size: ~${model.sizeBytes / (1024 * 1024)} MB", style = MaterialTheme.typography.bodySmall)
-                Text("Languages: ${model.supportedLanguages.joinToString()}", style = MaterialTheme.typography.bodySmall)
+                val sizeText = if (isCloudOrSystem) "Size: Cloud / System Service" else "Size: ~${model.sizeBytes / (1024 * 1024)} MB"
+                Text(sizeText, style = MaterialTheme.typography.bodySmall)
+                Text("Languages: ${model.supportedLanguages.take(4).joinToString()}", style = MaterialTheme.typography.bodySmall)
                 Text("Voices: ${model.voicesCount}", style = MaterialTheme.typography.bodySmall)
             }
 
             report?.let { comp ->
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val compIcon = if (comp.level == CompatibilityLevel.RECOMMENDED || comp.level == CompatibilityLevel.COMPATIBLE) Icons.Default.CheckCircle else Icons.Default.Warning
-                    val compColor = if (comp.level == CompatibilityLevel.RECOMMENDED || comp.level == CompatibilityLevel.COMPATIBLE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                    Icon(compIcon, contentDescription = null, tint = compColor, modifier = Modifier.height(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Compatibility: ${comp.level.name} (${comp.recommendedRtf})", style = MaterialTheme.typography.labelSmall, color = compColor)
+                if (!isCloudOrSystem) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val compIcon = if (comp.level == CompatibilityLevel.RECOMMENDED || comp.level == CompatibilityLevel.COMPATIBLE) Icons.Default.CheckCircle else Icons.Default.Warning
+                        val compColor = if (comp.level == CompatibilityLevel.RECOMMENDED || comp.level == CompatibilityLevel.COMPATIBLE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        Icon(compIcon, contentDescription = null, tint = compColor, modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Compatibility: ${comp.level.name} (${comp.recommendedRtf})", style = MaterialTheme.typography.labelSmall, color = compColor)
+                    }
                 }
             }
 
@@ -296,7 +300,7 @@ private fun ModelCard(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (model.status == ModelStatus.INSTALLED) {
+                if (effectiveStatus == ModelStatus.INSTALLED || isCloudOrSystem) {
                     if (isActiveModel) {
                         OutlinedButton(
                             onClick = {},
@@ -317,18 +321,20 @@ private fun ModelCard(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    OutlinedButton(
-                        onClick = onBenchmarkClick,
-                        enabled = !isRunningBenchmark
-                    ) {
-                        if (isRunningBenchmark) {
-                            CircularProgressIndicator(modifier = Modifier.height(16.dp).width(16.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                        } else {
-                            Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.height(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
+                    if (!isCloudOrSystem) {
+                        OutlinedButton(
+                            onClick = onBenchmarkClick,
+                            enabled = !isRunningBenchmark
+                        ) {
+                            if (isRunningBenchmark) {
+                                CircularProgressIndicator(modifier = Modifier.height(16.dp).width(16.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                            } else {
+                                Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text("Benchmark RTF")
                         }
-                        Text("Benchmark RTF")
                     }
                 } else {
                     Button(

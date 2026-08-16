@@ -115,35 +115,41 @@ fun ModelsScreen(
                                         }
                                     }
 
-                                    when (model.status) {
-                                        com.voconexus.app.core.tts.ModelStatus.INSTALLED -> {
+                                    val isCloudOrSystem = model.id in setOf("edge-tts", "google-cloud-tts", "android-tts") || model.sizeBytes == 0L
+                                    val effectiveStatus = if (isCloudOrSystem) com.voconexus.app.core.tts.ModelStatus.INSTALLED else model.status
+
+                                    when {
+                                        isCloudOrSystem || effectiveStatus == com.voconexus.app.core.tts.ModelStatus.INSTALLED -> {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 androidx.compose.material3.Surface(
                                                     shape = MaterialTheme.shapes.small,
                                                     color = MaterialTheme.colorScheme.secondaryContainer
                                                 ) {
+                                                    val labelText = if (model.id == "android-tts") "Built-in System" else if (isCloudOrSystem) "Online Cloud" else "Installed"
                                                     Text(
-                                                        text = "Installed",
+                                                        text = labelText,
                                                         color = MaterialTheme.colorScheme.primary,
                                                         style = MaterialTheme.typography.labelSmall,
                                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                                     )
                                                 }
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                androidx.compose.material3.IconButton(
-                                                    onClick = { viewModel.deleteModel(model.id) }
-                                                ) {
-                                                    Icon(
-                                                        imageVector = androidx.compose.material.icons.Icons.Default.Delete,
-                                                        contentDescription = "Delete Model",
-                                                        tint = MaterialTheme.colorScheme.error
-                                                    )
+                                                if (!isCloudOrSystem) {
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    androidx.compose.material3.IconButton(
+                                                        onClick = { viewModel.deleteModel(model.id) }
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = androidx.compose.material.icons.Icons.Default.Delete,
+                                                            contentDescription = "Delete Model",
+                                                            tint = MaterialTheme.colorScheme.error
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
-                                        com.voconexus.app.core.tts.ModelStatus.DOWNLOADING,
-                                        com.voconexus.app.core.tts.ModelStatus.INSTALLING,
-                                        com.voconexus.app.core.tts.ModelStatus.VERIFYING -> {
+                                        effectiveStatus == com.voconexus.app.core.tts.ModelStatus.DOWNLOADING ||
+                                        effectiveStatus == com.voconexus.app.core.tts.ModelStatus.INSTALLING ||
+                                        effectiveStatus == com.voconexus.app.core.tts.ModelStatus.VERIFYING -> {
                                             Text(
                                                 text = "${(model.downloadProgress * 100).toInt()}%",
                                                 style = MaterialTheme.typography.labelMedium,

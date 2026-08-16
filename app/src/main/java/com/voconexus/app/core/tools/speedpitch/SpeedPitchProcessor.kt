@@ -377,7 +377,7 @@ object SpeedPitchProcessor {
         val fileName = "${safeName}${suffix}.${ext}"
 
         val targetSubDir = if (isAudio) Environment.DIRECTORY_MUSIC else Environment.DIRECTORY_MOVIES
-        val publicBase = File(Environment.getExternalStoragePublicDirectory(targetSubDir), "VocoNexus")
+        val publicBase = File(File(Environment.getExternalStoragePublicDirectory(targetSubDir), "VocoNexus"), "SpeedPitchController")
 
         try {
             if (!publicBase.exists()) publicBase.mkdirs()
@@ -389,7 +389,7 @@ object SpeedPitchProcessor {
             Log.w(TAG, "Public directory write failed (${e.message}), falling back to app external dir", e)
         }
 
-        val appExtDir = File(context.getExternalFilesDir(targetSubDir), "VocoNexus")
+        val appExtDir = File(File(context.getExternalFilesDir(targetSubDir), "VocoNexus"), "SpeedPitchController")
         if (!appExtDir.exists()) appExtDir.mkdirs()
         val destFile = File(appExtDir, fileName)
         tempFile.copyTo(destFile, overwrite = true)

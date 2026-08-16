@@ -58,7 +58,7 @@ class EdgeTtsEngine(private val context: Context) : TtsEngine {
     override suspend fun getModels(): List<TtsModel> {
         return listOf(
             TtsModel(
-                id = "edge-tts-online",
+                id = "edge-tts",
                 engineId = id,
                 name = "Microsoft Edge Cloud TTS",
                 version = "1.0.0",

@@ -45,9 +45,9 @@ class GoogleCloudTtsEngine(private val context: Context) : TtsEngine {
     override suspend fun getModels(): List<TtsModel> {
         return listOf(
             TtsModel(
-                id = "google-tts-online",
+                id = "google-cloud-tts",
                 engineId = id,
-                name = "Google Network TTS",
+                name = "Google Cloud Neural TTS",
                 version = "1.0.0",
                 sizeBytes = 0L,
                 downloadUrl = "",

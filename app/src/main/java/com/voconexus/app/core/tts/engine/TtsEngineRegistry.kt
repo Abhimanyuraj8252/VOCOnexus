@@ -7,12 +7,11 @@ import java.util.concurrent.ConcurrentHashMap
 class TtsEngineRegistry(
     private val context: Context,
     defaultEngines: List<TtsEngine> = listOf(
-        SherpaOnnxEngine(),
         KokoroEngine(),
         PiperEngine(),
-        GoogleCloudTtsEngine(context),
         EdgeTtsEngine(context),
-        FakeTtsEngine()
+        GoogleCloudTtsEngine(context),
+        SherpaOnnxEngine()
     )
 ) {
 
@@ -41,7 +40,7 @@ class TtsEngineRegistry(
     }
 
     fun getRequiredEngine(engineId: String): TtsEngine {
-        return getEngine(engineId) ?: engines["fake-tts"] ?: engines.values.firstOrNull()
+        return getEngine(engineId) ?: engines["kokoro-v1.0"] ?: engines.values.firstOrNull()
         ?: throw IllegalStateException("No TTS engines registered in TtsEngineRegistry")
     }
 

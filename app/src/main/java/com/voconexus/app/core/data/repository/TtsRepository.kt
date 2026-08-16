@@ -60,7 +60,18 @@ class TtsRepositoryImpl(
         return modelDao.getAllModelsFlow().onStart {
             ensureInitialModelsAndVoicesSeeded()
         }.map { entities ->
-            entities.map { it.toDomainModel() }
+            val legacyIds = setOf("fake-model-en", "fake-tts", "edge-tts-online", "google-tts-online")
+            entities
+                .filter { it.id !in legacyIds }
+                .distinctBy { it.id }
+                .map { entity ->
+                    val domainModel = entity.toDomainModel()
+                    if (domainModel.id == "edge-tts" || domainModel.id == "google-cloud-tts" || domainModel.id == "android-tts" || domainModel.sizeBytes == 0L) {
+                        domainModel.copy(status = ModelStatus.INSTALLED)
+                    } else {
+                        domainModel
+                    }
+                }
         }
     }
 
