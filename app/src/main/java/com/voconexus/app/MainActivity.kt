@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
                         Screen.Home.route,
                         Screen.Voices.route,
                         Screen.Models.route,
+                        Screen.Tools.route,
                         Screen.AudioLibrary.route,
                         Screen.Settings.route
                     )
@@ -60,6 +61,7 @@ class MainActivity : ComponentActivity() {
                                     onNavigateHome = { navController.navigate(Screen.Home.route) { popUpTo(navController.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true } },
                                     onNavigateVoices = { navController.navigate(Screen.Voices.route) { popUpTo(navController.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true } },
                                     onNavigateModels = { navController.navigate(Screen.Models.route) { popUpTo(navController.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                    onNavigateTools = { navController.navigate(Screen.Tools.route) { popUpTo(navController.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true } },
                                     onNavigateAudio = { navController.navigate(Screen.AudioLibrary.route) { popUpTo(navController.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true } },
                                     onNavigateSettings = { navController.navigate(Screen.Settings.route) { popUpTo(navController.graph.startDestinationId) { saveState = true }; launchSingleTop = true; restoreState = true } }
                                 )

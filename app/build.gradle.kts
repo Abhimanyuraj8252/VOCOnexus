@@ -87,6 +87,10 @@ dependencies {
     // Commons Compress for tar.bz2 extraction
     implementation("org.apache.commons:commons-compress:1.26.0")
     
+    // FFmpeg-kit (community-maintained fork — com.arthenica retired April 2025)
+    implementation("dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7")
+    implementation("com.arthenica:smart-exception-java:0.2.1")
+    
     testImplementation(libs.androidx.core)
     testImplementation(libs.androidx.junit)
     testImplementation(libs.junit)

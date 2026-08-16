@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
@@ -478,6 +479,7 @@ fun VocoNexusBottomNav(
     onNavigateHome: () -> Unit,
     onNavigateVoices: () -> Unit,
     onNavigateModels: () -> Unit,
+    onNavigateTools: () -> Unit,
     onNavigateAudio: () -> Unit,
     onNavigateSettings: () -> Unit
 ) {
@@ -510,6 +512,16 @@ fun VocoNexusBottomNav(
             onClick = onNavigateModels,
             icon = { Icon(Icons.Default.Tune, contentDescription = "Models") },
             label = { Text("Models") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.primary,
+                indicatorColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        )
+        NavigationBarItem(
+            selected = currentRoute == "tools",
+            onClick = onNavigateTools,
+            icon = { Icon(Icons.Default.Build, contentDescription = "Tools") },
+            label = { Text("Tools") },
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = MaterialTheme.colorScheme.primary,
                 indicatorColor = MaterialTheme.colorScheme.primaryContainer

@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
@@ -75,7 +76,8 @@ fun HomeScreen(
     onNavigateVoices: () -> Unit,
     onNavigateModels: () -> Unit,
     onNavigateAudio: () -> Unit,
-    onNavigateSettings: () -> Unit
+    onNavigateSettings: () -> Unit,
+    onNavigateSpeedPitch: () -> Unit = {}
 ) {
     val projects by viewModel.projectsFlow.collectAsState()
     val dialogState by viewModel.dialogState.collectAsState()

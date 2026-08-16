@@ -33,4 +33,6 @@ sealed class Screen(val route: String) {
     object DeviceDashboard : Screen("device_dashboard")
     object LicenseAttribution : Screen("license_attribution")
     object Settings : Screen("settings")
+    object Tools : Screen("tools")
+    object SpeedPitchController : Screen("speed_pitch_controller")
 }

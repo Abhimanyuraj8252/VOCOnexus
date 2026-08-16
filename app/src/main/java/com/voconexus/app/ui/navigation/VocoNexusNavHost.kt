@@ -71,7 +71,8 @@ fun VocoNexusNavHost(
                 onNavigateVoices = { navController.navigate(Screen.Voices.route) },
                 onNavigateModels = { navController.navigate(Screen.Models.route) },
                 onNavigateAudio = { navController.navigate(Screen.AudioLibrary.route) },
-                onNavigateSettings = { navController.navigate(Screen.Settings.route) }
+                onNavigateSettings = { navController.navigate(Screen.Settings.route) },
+                onNavigateSpeedPitch = { navController.navigate(Screen.SpeedPitchController.route) }
             )
         }
 
@@ -439,6 +440,26 @@ fun VocoNexusNavHost(
         // Destination: License & Attribution
         composable(route = Screen.LicenseAttribution.route) {
             com.voconexus.app.ui.screens.models.LicenseAttributionScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // Destination: Tools Hub
+        composable(route = Screen.Tools.route) {
+            com.voconexus.app.ui.screens.tools.ToolsScreen(
+                onNavigateSpeedPitch = { navController.navigate(Screen.SpeedPitchController.route) }
+            )
+        }
+
+        // Destination: Speed & Pitch Controller Tool
+        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
+        composable(route = Screen.SpeedPitchController.route) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: com.voconexus.app.ui.screens.speedpitch.SpeedPitchViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.voconexus.app.ui.screens.speedpitch.SpeedPitchViewModel.Factory(context)
+            )
+            com.voconexus.app.ui.screens.speedpitch.SpeedPitchScreen(
+                viewModel = viewModel,
                 onBackClick = { navController.popBackStack() }
             )
         }
