@@ -449,7 +449,8 @@ fun VocoNexusNavHost(
             com.voconexus.app.ui.screens.tools.ToolsScreen(
                 onNavigateSpeedPitch = { navController.navigate(Screen.SpeedPitchController.route) },
                 onNavigateAudioExtractor = { navController.navigate(Screen.AudioExtractor.route) },
-                onNavigateFormatConverter = { navController.navigate(Screen.FormatConverter.route) }
+                onNavigateFormatConverter = { navController.navigate(Screen.FormatConverter.route) },
+                onNavigateTrimmerMerger = { navController.navigate(Screen.TrimmerMerger.route) }
             )
         }
 
@@ -487,6 +488,21 @@ fun VocoNexusNavHost(
                 factory = com.voconexus.app.ui.screens.convertercompressor.ConverterCompressorViewModel.Factory(context)
             )
             com.voconexus.app.ui.screens.convertercompressor.ConverterCompressorScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // Destination: Media Trimmer & Merger Tool
+        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
+        composable(route = Screen.TrimmerMerger.route) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val probe = remember { com.voconexus.app.core.tools.trimmermerger.TrimmerMergerProbe(context) }
+            val processor = remember { com.voconexus.app.core.tools.trimmermerger.TrimmerMergerProcessor(context) }
+            val viewModel: com.voconexus.app.ui.screens.trimmermerger.TrimmerMergerViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.voconexus.app.ui.screens.trimmermerger.TrimmerMergerViewModel.Factory(context, probe, processor)
+            )
+            com.voconexus.app.ui.screens.trimmermerger.TrimmerMergerScreen(
                 viewModel = viewModel,
                 onBackClick = { navController.popBackStack() }
             )

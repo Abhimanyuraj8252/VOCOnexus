@@ -24,6 +24,7 @@ object GenerationFingerprint {
     fun normalizeText(rawText: String): String {
         return rawText
             .trim()
+            .replace("[\u200B\u200C\u200D\uFEFF]".toRegex(), "")
             .replace("\\s+".toRegex(), " ")
             .replace("[\"'\u201C\u201D\u2018\u2019]".toRegex(), "")
     }

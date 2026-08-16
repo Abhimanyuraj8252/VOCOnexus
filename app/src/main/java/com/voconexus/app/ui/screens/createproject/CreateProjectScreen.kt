@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.voconexus.app.ui.components.VocoNexusButton
 import com.voconexus.app.ui.components.VocoNexusTopBar
+import com.voconexus.app.core.utils.FastTextHelpers
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -77,7 +78,8 @@ fun CreateProjectScreen(
         uri?.let {
             try {
                 val inputStream = context.contentResolver.openInputStream(it)
-                val importedText = inputStream?.bufferedReader()?.use { reader -> reader.readText() } ?: ""
+                val rawImported = inputStream?.bufferedReader(Charsets.UTF_8)?.use { reader -> reader.readText() } ?: ""
+                val importedText = rawImported.replace("\uFEFF", "").trim()
                 if (importedText.isNotBlank()) {
                     viewModel.onScriptTextChanged(importedText)
                 }
@@ -87,7 +89,7 @@ fun CreateProjectScreen(
 
     // Dynamic Script Analysis Calculations
     val charCount = uiState.scriptText.length
-    val wordCount = if (uiState.scriptText.isBlank()) 0 else uiState.scriptText.trim().split("\\s+".toRegex()).size
+    val wordCount = remember(uiState.scriptText) { FastTextHelpers.fastWordCount(uiState.scriptText) }
     val estimatedSeconds = (wordCount / 2.5).toInt()
     val estMins = estimatedSeconds / 60
     val estSecs = estimatedSeconds % 60

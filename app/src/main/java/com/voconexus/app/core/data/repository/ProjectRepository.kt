@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import com.voconexus.app.core.utils.FastTextHelpers
 import java.util.UUID
 
 interface ProjectRepository {
@@ -48,6 +49,7 @@ interface ProjectRepository {
     suspend fun renameProject(projectId: String, newTitle: String)
     suspend fun updateProjectVoice(projectId: String, voiceId: String, engineId: String)
     suspend fun updateProjectSpeechSettings(id: String, speed: Float, pitch: Float, targetDurationMs: Long, durationMode: String)
+    suspend fun getDocumentForProjectDirect(projectId: String): DocumentEntity?
     suspend fun updateDocumentScript(projectId: String, newScriptText: String)
     suspend fun analyzeScript(projectId: String, config: ChunkingConfig = ChunkingConfig()): ScriptAnalysisPlan
     suspend fun commitScriptPlan(projectId: String, plan: ScriptAnalysisPlan)
@@ -65,6 +67,10 @@ class ProjectRepositoryImpl(
     scriptPlannerEngine: ScriptPlannerEngine? = null,
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
 ) : ProjectRepository {
+
+    override suspend fun getDocumentForProjectDirect(projectId: String): DocumentEntity? = withContext(ioDispatcher) {
+        documentDao.getDocumentForProject(projectId)
+    }
 
     private val scriptPlannerEngine: ScriptPlannerEngine = scriptPlannerEngine ?: ScriptPlannerEngine(
         sentenceSegmenter = RuleBasedSentenceSegmenter(),
@@ -141,7 +147,7 @@ class ProjectRepositoryImpl(
 
         val textHash = GenerationFingerprint.sha256(rawScriptText)
 
-        val totalWordCount = rawScriptText.split("\\s+".toRegex()).size
+        val totalWordCount = FastTextHelpers.fastWordCount(rawScriptText)
         val totalCharCount = rawScriptText.length
         val estimatedMs = (totalWordCount * 400L).coerceAtLeast(1000L)
 
@@ -176,8 +182,12 @@ class ProjectRepositoryImpl(
         projectDao.insertProject(project)
         documentDao.insertDocument(document)
 
-        val plan = scriptPlannerEngine.generatePlan(projectId, documentId, rawScriptText)
-        commitScriptPlan(projectId, plan)
+        try {
+            val plan = scriptPlannerEngine.generatePlan(projectId, documentId, rawScriptText)
+            commitScriptPlan(projectId, plan)
+        } catch (e: Exception) {
+            android.util.Log.e("VocoNexus", "Failed to generate initial script plan: ${e.message}", e)
+        }
 
         return@withContext projectId
     }
@@ -217,12 +227,26 @@ class ProjectRepositoryImpl(
             ?: throw IllegalStateException("Document not found for project: $projectId")
 
         val newTextHash = GenerationFingerprint.sha256(trimmedScript)
+        
+        // CRITICAL FIX: Always update rawText, textHash, and word/char counts in Room DB!
+        val updatedDoc = document.copy(
+            rawText = trimmedScript,
+            textHash = newTextHash,
+            wordCount = FastTextHelpers.fastWordCount(trimmedScript),
+            characterCount = trimmedScript.length
+        )
+        documentDao.insertDocument(updatedDoc)
+
         if (document.textHash == newTextHash) {
             return@withContext // No changes
         }
 
-        val plan = scriptPlannerEngine.generatePlan(projectId, document.id, trimmedScript)
-        commitScriptPlan(projectId, plan)
+        try {
+            val plan = scriptPlannerEngine.generatePlan(projectId, document.id, trimmedScript)
+            commitScriptPlan(projectId, plan)
+        } catch (e: Exception) {
+            android.util.Log.e("VocoNexus", "Failed to generate or commit script plan: ${e.message}", e)
+        }
     }
 
     override suspend fun analyzeScript(

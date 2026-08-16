@@ -2,6 +2,7 @@ package com.voconexus.app.core.util
 
 import com.voconexus.app.core.domain.DurationEstimator
 import com.voconexus.app.core.domain.StandardDurationEstimator
+import com.voconexus.app.core.utils.FastTextHelpers
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.log10
@@ -16,8 +17,6 @@ data class TextStatistics(
 )
 
 object Formatters {
-
-    private val unicodeWordRegex = "[\\p{L}\\p{N}]+".toRegex()
 
     fun formatDurationMs(durationMs: Long): String {
         if (durationMs <= 0L) return "00:00:00"
@@ -42,8 +41,7 @@ object Formatters {
     }
 
     fun countUnicodeWords(text: String): Int {
-        if (text.isBlank()) return 0
-        return unicodeWordRegex.findAll(text).count()
+        return FastTextHelpers.fastWordCount(text)
     }
 
     fun calculateTextStatistics(

@@ -9,12 +9,14 @@ class HeuristicTokenEstimator : TokenEstimator {
     override fun estimateTokens(text: String): Int {
         if (text.isBlank()) return 0
 
-        val words = Regex("""[\p{L}\p{N}]+""").findAll(text).map { it.value }.toList()
-        if (words.isEmpty()) return 1
-
         var totalTokens = 0.0
+        var hasWords = false
 
-        for (word in words) {
+        Regex("""[\p{L}\p{N}]+""").findAll(text).forEach { match ->
+            hasWords = true
+            val word = match.value
+
+
             val isDevanagari = word.any { it in '\u0900'..'\u097F' }
             if (isDevanagari) {
                 // Devanagari words typically tokenize into 1.5-2.0 tokens per word
@@ -30,6 +32,8 @@ class HeuristicTokenEstimator : TokenEstimator {
                 totalTokens += wordTokens
             }
         }
+
+        if (!hasWords) return 1
 
         // Punctuation overhead
         val punctuationCount = text.count { it in ".,!?;:—-\" '()[]" }

@@ -2,6 +2,7 @@ package com.voconexus.app.core.planner.segmentation
 
 import com.voconexus.app.core.domain.DurationEstimator
 import com.voconexus.app.core.planner.model.TokenEstimator
+import com.voconexus.app.core.utils.FastTextHelpers
 
 interface SentenceSegmenter {
     fun segmentDocument(
@@ -236,7 +237,7 @@ class RuleBasedSentenceSegmenter(
     }
 
     private fun countWords(text: String): Int {
-        return Regex("""[\p{L}\p{N}]+""").findAll(text).count()
+        return FastTextHelpers.fastWordCount(text)
     }
 
     private fun detectLanguage(text: String): String {

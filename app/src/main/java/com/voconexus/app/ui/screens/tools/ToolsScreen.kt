@@ -45,23 +45,25 @@ data class ToolItem(
 fun ToolsScreen(
     onNavigateSpeedPitch: () -> Unit,
     onNavigateAudioExtractor: () -> Unit,
-    onNavigateFormatConverter: () -> Unit
+    onNavigateFormatConverter: () -> Unit,
+    onNavigateTrimmerMerger: () -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
 
     val categories = listOf("All", "Audio & Video", "Voice", "Utilities")
 
-    val toolsList = remember {
+    // Tools List - Strictly Alphabetical Sorting (A to Z)
+    val rawToolsList = remember {
         listOf(
             ToolItem(
-                id = "format_converter",
-                title = "Format Converter & Compressor",
-                description = "Convert any video/audio between MP4, MKV, AVI, MOV, WebM, MP3, AAC, WAV, FLAC with CRF size compression.",
-                icon = Icons.Default.Transform,
-                category = "Audio & Video",
-                tags = listOf("Converter", "Compressor", "Estimator", "TargetMB"),
-                isAvailable = true,
-                gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF06B6D4))
+                id = "noise_reduction",
+                title = "AI Noise Reduction & Cleaner",
+                description = "Remove background noise, hums, and hiss from recorded audio using AI algorithms.",
+                icon = Icons.Default.GraphicEq,
+                category = "Voice",
+                tags = listOf("Denoiser", "AI Clean", "Enhance"),
+                isAvailable = false,
+                gradientColors = listOf(Color(0xFF10B981), Color(0xFF059669))
             ),
             ToolItem(
                 id = "audio_extractor",
@@ -74,6 +76,26 @@ fun ToolsScreen(
                 gradientColors = listOf(Color(0xFF10B981), Color(0xFF059669))
             ),
             ToolItem(
+                id = "format_converter",
+                title = "Format Converter & Compressor",
+                description = "Convert any video/audio between MP4, MKV, AVI, MOV, WebM, MP3, AAC, WAV, FLAC with CRF size compression.",
+                icon = Icons.Default.Transform,
+                category = "Audio & Video",
+                tags = listOf("Converter", "Compressor", "Estimator", "TargetMB"),
+                isAvailable = true,
+                gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF06B6D4))
+            ),
+            ToolItem(
+                id = "audio_merger",
+                title = "Media Trimmer & Merger",
+                description = "Precision cut, splice, and combine multiple audio or video tracks into a single seamless output file.",
+                icon = Icons.Default.ContentCut,
+                category = "Audio & Video",
+                tags = listOf("Trim", "Merge", "Concat", "AutoSplit"),
+                isAvailable = true,
+                gradientColors = listOf(Color(0xFFEC4899), Color(0xFFF43F5E))
+            ),
+            ToolItem(
                 id = "speed_pitch",
                 title = "Speed & Pitch Controller",
                 description = "Change speed (0.1x–8.0x), pitch semitones, trim A/B, fade in/out, 5-band EQ & export to any format.",
@@ -82,26 +104,6 @@ fun ToolsScreen(
                 tags = listOf("Speed", "Pitch", "Trim", "EQ", "Export"),
                 isAvailable = true,
                 gradientColors = listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
-            ),
-            ToolItem(
-                id = "audio_merger",
-                title = "Audio Trimmer & Merger",
-                description = "Cut, splice, and combine multiple audio or video tracks into a single seamless output file.",
-                icon = Icons.Default.ContentCut,
-                category = "Audio & Video",
-                tags = listOf("Trim", "Merge", "Concat"),
-                isAvailable = false,
-                gradientColors = listOf(Color(0xFFEC4899), Color(0xFFF43F5E))
-            ),
-            ToolItem(
-                id = "noise_reduction",
-                title = "AI Noise Reduction & Cleaner",
-                description = "Remove background noise, hums, and hiss from recorded audio using AI algorithms.",
-                icon = Icons.Default.GraphicEq,
-                category = "Voice",
-                tags = listOf("Denoiser", "AI Clean", "Enhance"),
-                isAvailable = false,
-                gradientColors = listOf(Color(0xFF10B981), Color(0xFF059669))
             ),
             ToolItem(
                 id = "vocal_remover",
@@ -116,9 +118,11 @@ fun ToolsScreen(
         )
     }
 
+    // Alphabetical Sorting Guaranteed
     val filteredTools = remember(selectedCategory) {
-        if (selectedCategory == "All") toolsList
-        else toolsList.filter { it.category == selectedCategory || selectedCategory == "All" }
+        val list = if (selectedCategory == "All") rawToolsList
+        else rawToolsList.filter { it.category == selectedCategory }
+        list.sortedBy { it.title }
     }
 
     Scaffold(
@@ -182,7 +186,7 @@ fun ToolsScreen(
             // Section Header
             item {
                 VocoNexusSectionHeader(
-                    title = if (selectedCategory == "All") "Available Tools" else "$selectedCategory Tools",
+                    title = if (selectedCategory == "All") "Available Tools (A-Z)" else "$selectedCategory Tools (A-Z)",
                     actionText = "${filteredTools.size} Tools"
                 )
             }
@@ -196,6 +200,7 @@ fun ToolsScreen(
                             "speed_pitch" -> onNavigateSpeedPitch()
                             "audio_extractor" -> onNavigateAudioExtractor()
                             "format_converter" -> onNavigateFormatConverter()
+                            "audio_merger" -> onNavigateTrimmerMerger()
                         }
                     }
                 )
@@ -205,19 +210,28 @@ fun ToolsScreen(
 }
 
 @Composable
-private fun ToolCardItem(
+fun ToolCardItem(
     tool: ToolItem,
     onLaunch: () -> Unit
 ) {
-    Surface(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(enabled = tool.isAvailable, onClick = onLaunch),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 3.dp
+            .clickable(enabled = tool.isAvailable) { onLaunch() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (tool.isAvailable)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (tool.isAvailable)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            else
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+        )
     ) {
         Column(
             modifier = Modifier
@@ -231,112 +245,129 @@ private fun ToolCardItem(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Box(
                         modifier = Modifier
                             .size(52.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Brush.linearGradient(tool.gradientColors)),
+                            .background(
+                                Brush.linearGradient(
+                                    if (tool.isAvailable) tool.gradientColors
+                                    else listOf(Color.Gray.copy(alpha = 0.3f), Color.Gray.copy(alpha = 0.2f))
+                                )
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = tool.icon,
-                            contentDescription = null,
+                            contentDescription = tool.title,
                             tint = Color.White,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(26.dp)
                         )
                     }
-                    Spacer(Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+
+                    Column {
                         Text(
                             text = tool.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = if (tool.isAvailable)
+                                MaterialTheme.colorScheme.onSurface
+                            else
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = tool.category,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = tool.gradientColors.first()
-                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                color = if (tool.isAvailable)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = tool.category,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (tool.isAvailable)
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+
+                            if (!tool.isAvailable) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text(
+                                        text = "Coming Soon",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-
-                Spacer(Modifier.width(8.dp))
 
                 if (tool.isAvailable) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.primary)
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Open",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "Coming Soon",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.SemiBold
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Open Tool",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = tool.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 18.sp
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (tool.isAvailable)
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Tags row
             Row(
-                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 tool.tags.forEach { tag ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(
-                                if (tool.isAvailable) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(6.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
                     ) {
                         Text(
-                            text = tag,
+                            text = "#$tag",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (tool.isAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
                 }

@@ -1,52 +1,29 @@
 package com.voconexus.app.ui.screens.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Brightness6
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.voconexus.app.core.preferences.QualityPreset
 import com.voconexus.app.core.preferences.ThemeMode
-import com.voconexus.app.ui.components.VocoNexusCard
-import com.voconexus.app.ui.components.VocoNexusSectionHeader
-import com.voconexus.app.ui.components.VocoNexusTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,9 +43,27 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            VocoNexusTopBar(
-                title = "Settings",
-                onBackClick = onBackClick
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "App Settings",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Preferences, Theme & Engine Quality",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { innerPadding ->
@@ -78,211 +73,211 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Section 1: Appearance & Theme
-            VocoNexusSectionHeader(title = "Appearance & Theme")
-
-            VocoNexusCard {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DarkMode, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("Theme Preference", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = uiState.themeMode == ThemeMode.SYSTEM,
-                            onClick = { viewModel.setThemeMode(ThemeMode.SYSTEM) },
-                            label = { Text("System") }
-                        )
-                        FilterChip(
-                            selected = uiState.themeMode == ThemeMode.LIGHT,
-                            onClick = { viewModel.setThemeMode(ThemeMode.LIGHT) },
-                            label = { Text("Light") }
-                        )
-                        FilterChip(
-                            selected = uiState.themeMode == ThemeMode.DARK,
-                            onClick = { viewModel.setThemeMode(ThemeMode.DARK) },
-                            label = { Text("Dark") }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Brightness6, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("High Contrast Mode", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        }
-                        Switch(
-                            checked = uiState.isHighContrastEnabled,
-                            onCheckedChange = viewModel::toggleHighContrast
-                        )
-                    }
-                }
-            }
-
-            // Section 2: Generation & Quality Presets
-            VocoNexusSectionHeader(title = "Generation & Quality")
-
-            VocoNexusCard {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("Quality Preset", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = uiState.qualityPreset == QualityPreset.BALANCED,
-                            onClick = { viewModel.setQualityPreset(QualityPreset.BALANCED) },
-                            label = { Text("Balanced") }
-                        )
-                        FilterChip(
-                            selected = uiState.qualityPreset == QualityPreset.HIGH_QUALITY,
-                            onClick = { viewModel.setQualityPreset(QualityPreset.HIGH_QUALITY) },
-                            label = { Text("High Quality") }
-                        )
-                        FilterChip(
-                            selected = uiState.qualityPreset == QualityPreset.STORAGE_EFFICIENT,
-                            onClick = { viewModel.setQualityPreset(QualityPreset.STORAGE_EFFICIENT) },
-                            label = { Text("Efficient") }
-                        )
-                    }
-                }
-            }
-
-            // Section 3: Downloads & Notifications
-            VocoNexusSectionHeader(title = "Downloads & Notifications")
-
-            VocoNexusCard {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Download, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("Wi-Fi Only Downloads", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        }
-                        Switch(
-                            checked = uiState.isWifiOnlyDownloads,
-                            onCheckedChange = viewModel::setWifiOnlyDownloads
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("App Notifications", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        }
-                        Switch(
-                            checked = uiState.isNotificationsEnabled,
-                            onCheckedChange = viewModel::setNotificationsEnabled
-                        )
-                    }
-                }
-            }
-
-            // Section 4: Privacy & Data Inventory
-            VocoNexusSectionHeader(title = "Privacy & Diagnostics")
-
-            Card(
-                onClick = onNavigatePrivacy,
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-            ) {
+            // === SECTION 1: APPEARANCE & THEME ===
+            SettingsGroupHeader(title = "Appearance & Interface", icon = Icons.Default.DarkMode, tint = Color(0xFF8B5CF6))
+            SettingsCard {
+                Text("Theme Preference", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val themes = listOf(
+                        ThemeMode.SYSTEM to "📱 System",
+                        ThemeMode.LIGHT to "☀️ Light",
+                        ThemeMode.DARK to "🌙 Dark"
+                    )
+                    themes.forEach { (mode, label) ->
+                        val selected = uiState.themeMode == mode
+                        FilterChip(
+                            selected = selected,
+                            onClick = { viewModel.setThemeMode(mode) },
+                            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text("Privacy & Local Data Inventory", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Text("Review local storage and reset data", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("High Contrast Mode", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Enhances visual contrast for text & buttons", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Icon(Icons.Default.ChevronRight, contentDescription = "Navigate to Privacy")
+                    Switch(checked = uiState.isHighContrastEnabled, onCheckedChange = viewModel::toggleHighContrast)
                 }
             }
 
-            // Section 5: Diagnostics Exporter
-            VocoNexusCard {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("System Diagnostics", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            // === SECTION 2: GENERATION & QUALITY PRESETS ===
+            SettingsGroupHeader(title = "Synthesis & Audio Quality", icon = Icons.Default.Tune, tint = Color(0xFF6366F1))
+            SettingsCard {
+                Text("Audio Quality Preset", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val presets = listOf(
+                        QualityPreset.BALANCED to "⚡ Balanced",
+                        QualityPreset.HIGH_QUALITY to "💎 High Quality",
+                        QualityPreset.STORAGE_EFFICIENT to "📦 Efficient"
+                    )
+                    presets.forEach { (preset, label) ->
+                        val selected = uiState.qualityPreset == preset
+                        FilterChip(
+                            selected = selected,
+                            onClick = { viewModel.setQualityPreset(preset) },
+                            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF6366F1),
+                                selectedLabelColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Generate a sanitized system diagnostic report for troubleshooting.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(onClick = viewModel::generateDiagnosticReport) {
-                        Text("Generate Report")
+                }
+            }
+
+            // === SECTION 3: NETWORK & DOWNLOADS ===
+            SettingsGroupHeader(title = "Network & Notifications", icon = Icons.Default.Download, tint = Color(0xFF10B981))
+            SettingsCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Wi-Fi Only Downloads", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Download neural models only when connected to Wi-Fi", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = uiState.isWifiOnlyDownloads, onCheckedChange = viewModel::setWifiOnlyDownloads)
+                }
+
+                Spacer(Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("App Notifications", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Receive updates on export & batch processing", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = uiState.isNotificationsEnabled, onCheckedChange = viewModel::setNotificationsEnabled)
+                }
+            }
+
+            // === SECTION 4: STORAGE & CACHE ===
+            SettingsGroupHeader(title = "Storage & System Memory", icon = Icons.Default.Storage, tint = Color(0xFFF59E0B))
+            SettingsCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Available Storage", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("${storageMb / 1024} GB Free Space", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
 
-                    if (uiState.lastDiagnosticReport != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                            Text(
-                                text = uiState.lastDiagnosticReport!!,
-                                modifier = Modifier.padding(12.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                            )
-                        }
+                    OutlinedButton(
+                        onClick = viewModel::clearModelCache,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.CleaningServices, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Clear Cache", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
 
-            // Section 6: About VocoNexus & Open Source Licenses
-            VocoNexusSectionHeader(title = "About")
+            // === SECTION 5: PRIVACY & LEGAL ===
+            SettingsGroupHeader(title = "Privacy & Licensing", icon = Icons.Default.Security, tint = Color(0xFFEC4899))
+            SettingsCard {
+                NavigationRowItem(
+                    title = "Privacy Policy & Data Protection",
+                    icon = Icons.Default.Security,
+                    onClick = onNavigatePrivacy
+                )
 
-            VocoNexusCard {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text("VocoNexus v1.0.0", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Text("Production Offline-First Long-Form TTS System", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Storage, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("$storageMb MB free disk space", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = onNavigateAttribution, modifier = Modifier.fillMaxWidth()) {
-                        Text("Open Source & Model Attributions")
-                    }
-                }
+                Spacer(Modifier.height(10.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Spacer(Modifier.height(10.dp))
+
+                NavigationRowItem(
+                    title = "Licenses & Open Source Attributions",
+                    icon = Icons.Default.Info,
+                    onClick = onNavigateAttribution
+                )
             }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Components & Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun SettingsGroupHeader(title: String, icon: ImageVector, tint: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), content = content)
+    }
+}
+
+@Composable
+private fun NavigationRowItem(title: String, icon: ImageVector, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

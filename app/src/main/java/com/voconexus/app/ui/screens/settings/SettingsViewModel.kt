@@ -77,6 +77,11 @@ class SettingsViewModel(
         userPreferencesManager.setNotificationsEnabled(enabled)
     }
 
+    fun clearModelCache() {
+        storageManager.clearAllTempAudioFiles()
+        _uiState.value = _uiState.value.copy(availableStorageBytes = storageManager.getAvailableStorageBytes())
+    }
+
     fun generateDiagnosticReport() {
         val report = diagnosticsExporter.generateDiagnosticReport()
         _uiState.value = _uiState.value.copy(lastDiagnosticReport = report)

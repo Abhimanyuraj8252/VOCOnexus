@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AudioFile
@@ -345,15 +347,16 @@ fun OverviewTabContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         if (job != null && (job.status == GenerationJobStatus.RUNNING || job.status == GenerationJobStatus.QUEUED || job.status == GenerationJobStatus.PAUSED)) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
-                    shape = RoundedCornerShape(16.dp)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -378,30 +381,32 @@ fun OverviewTabContent(
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        androidx.compose.material3.LinearProgressIndicator(
+                        LinearProgressIndicator(
                             progress = { if (job.totalChunks > 0) job.completedChunks.toFloat() / job.totalChunks.toFloat() else 0f },
                             modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp))
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (job.status == GenerationJobStatus.RUNNING) {
-                                OutlinedButton(onClick = onPauseJob, modifier = Modifier.weight(1f)) {
-                                    Icon(Icons.Default.Pause, contentDescription = "Pause")
+                                OutlinedButton(onClick = onPauseJob, modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp)) {
+                                    Icon(Icons.Default.Pause, contentDescription = "Pause", modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Pause")
                                 }
                             } else if (job.status == GenerationJobStatus.PAUSED) {
-                                Button(onClick = onStartGeneration, modifier = Modifier.weight(1f)) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = "Resume")
+                                Button(onClick = onStartGeneration, modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp)) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = "Resume", modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Resume")
                                 }
                             }
                             OutlinedButton(
                                 onClick = onCancelJob,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
-                                Icon(Icons.Default.Stop, contentDescription = "Cancel")
+                                Icon(Icons.Default.Stop, contentDescription = "Cancel", modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Cancel")
                             }
@@ -412,8 +417,13 @@ fun OverviewTabContent(
         }
 
         item {
-            VocoNexusCard {
-                Column {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = project.title,
                         style = MaterialTheme.typography.titleLarge,
@@ -429,7 +439,7 @@ fun OverviewTabContent(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     VocoNexusProgress(
                         progress = progress,
@@ -440,15 +450,23 @@ fun OverviewTabContent(
         }
 
         item {
-            VocoNexusCard {
-                Column {
-                    Text(
-                        text = "Target Engine & Voice",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Target Engine & Neural Voice",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     var voiceMenuExpanded by remember { mutableStateOf(false) }
                     var engineMenuExpanded by remember { mutableStateOf(false) }
@@ -465,13 +483,13 @@ fun OverviewTabContent(
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Text(
-                                    text = engineOptions.find { it.first == currentEngineId }?.second ?: currentEngineId,
+                                    text = "Engine: ${engineOptions.find { it.first == currentEngineId }?.second ?: currentEngineId}",
                                     style = MaterialTheme.typography.labelMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Icon(Icons.Default.Tune, contentDescription = null)
+                                Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(14.dp))
                             }
                             
                             Spacer(modifier = Modifier.height(8.dp))
@@ -482,159 +500,13 @@ fun OverviewTabContent(
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Text(
-                                    text = engineVoices.find { it.first == currentVoiceId }?.second ?: currentVoiceId,
+                                    text = "Voice: ${engineVoices.find { it.first == currentVoiceId }?.second ?: currentVoiceId}",
                                     style = MaterialTheme.typography.labelMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Icon(Icons.Default.Tune, contentDescription = null)
-                            }
-                        }
-
-                        if (voiceMenuExpanded) {
-                            Dialog(onDismissRequest = { voiceMenuExpanded = false }) {
-                                Surface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(min = 300.dp, max = 500.dp)
-                                        .padding(8.dp),
-                                    shape = RoundedCornerShape(24.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shadowElevation = 12.dp,
-                                    tonalElevation = 8.dp
-                                ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize().padding(20.dp)
-                                    ) {
-                                        Text(
-                                            text = "Select Voice",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        
-                                        LazyColumn(
-                                            modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            items(engineVoices, key = { it.first }) { (vId, label) ->
-                                                val isSelected = vId == currentVoiceId
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(12.dp))
-                                                        .background(
-                                                            if (isSelected) MaterialTheme.colorScheme.primaryContainer 
-                                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                                        )
-                                                        .clickable {
-                                                            onUpdateVoice(vId, currentEngineId)
-                                                            voiceMenuExpanded = false
-                                                        }
-                                                        .padding(16.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    if (isSelected) {
-                                                        Icon(Icons.Default.CheckCircle, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
-                                                        Spacer(modifier = Modifier.width(12.dp))
-                                                    } else {
-                                                        Icon(Icons.Default.RadioButtonUnchecked, contentDescription = "Unselected", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                        Spacer(modifier = Modifier.width(12.dp))
-                                                    }
-                                                    Text(
-                                                        text = label,
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Button(
-                                            onClick = { voiceMenuExpanded = false },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text("Close")
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (engineMenuExpanded) {
-                            Dialog(onDismissRequest = { engineMenuExpanded = false }) {
-                                Surface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(400.dp)
-                                        .padding(16.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    tonalElevation = 6.dp
-                                ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize().padding(16.dp)
-                                    ) {
-                                        Text(
-                                            text = "Select Engine",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        HorizontalDivider()
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        
-                                        LazyColumn(
-                                            modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            items(engineOptions, key = { it.first }) { (eId, label) ->
-                                                val isSelected = eId == currentEngineId
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                                                        .clickable {
-                                                            val defaultVoiceForEngine = allVoices.find { it.engineId == eId }?.id ?: "af_heart"
-                                                            onUpdateVoice(defaultVoiceForEngine, eId)
-                                                            engineMenuExpanded = false
-                                                        }
-                                                        .padding(12.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    if (isSelected) {
-                                                        Icon(Icons.Default.CheckBox, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
-                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                    }
-                                                    Text(
-                                                        text = label,
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Button(
-                                            onClick = { engineMenuExpanded = false },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text("Close")
-                                        }
-                                    }
-                                }
+                                Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(14.dp))
                             }
                         }
 
@@ -659,7 +531,155 @@ fun OverviewTabContent(
                                 }
                             }
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = "Play Voice Preview", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Play Voice Preview", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                        }
+
+                        if (voiceMenuExpanded) {
+                            Dialog(onDismissRequest = { voiceMenuExpanded = false }) {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 300.dp, max = 500.dp)
+                                        .padding(8.dp),
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shadowElevation = 12.dp
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize().padding(20.dp)
+                                    ) {
+                                        Text(
+                                            text = "Select Neural Voice",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        
+                                        LazyColumn(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            items(engineVoices, key = { it.first }) { (vId, label) ->
+                                                val isSelected = vId == currentVoiceId
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(
+                                                            if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                                        )
+                                                        .clickable {
+                                                            onUpdateVoice(vId, currentEngineId)
+                                                            voiceMenuExpanded = false
+                                                        }
+                                                        .padding(14.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    if (isSelected) {
+                                                        Icon(Icons.Default.CheckCircle, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                                                        Spacer(modifier = Modifier.width(12.dp))
+                                                    } else {
+                                                        Icon(Icons.Default.RadioButtonUnchecked, contentDescription = "Unselected", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                        Spacer(modifier = Modifier.width(12.dp))
+                                                    }
+                                                    Text(
+                                                        text = label,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Button(
+                                            onClick = { voiceMenuExpanded = false },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Text("Close")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (engineMenuExpanded) {
+                            Dialog(onDismissRequest = { engineMenuExpanded = false }) {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 250.dp, max = 450.dp)
+                                        .padding(8.dp),
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shadowElevation = 12.dp
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize().padding(20.dp)
+                                    ) {
+                                        Text(
+                                            text = "Select Speech Engine",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        
+                                        LazyColumn(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            items(engineOptions, key = { it.first }) { (eId, label) ->
+                                                val isSelected = eId == currentEngineId
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                                        .clickable {
+                                                            val defaultVoiceForEngine = allVoices.find { it.engineId == eId }?.id ?: "af_heart"
+                                                            onUpdateVoice(defaultVoiceForEngine, eId)
+                                                            engineMenuExpanded = false
+                                                        }
+                                                        .padding(14.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    if (isSelected) {
+                                                        Icon(Icons.Default.CheckCircle, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                                                        Spacer(modifier = Modifier.width(12.dp))
+                                                    } else {
+                                                        Icon(Icons.Default.RadioButtonUnchecked, contentDescription = "Unselected", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                        Spacer(modifier = Modifier.width(12.dp))
+                                                    }
+                                                    Text(
+                                                        text = label,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Button(
+                                            onClick = { engineMenuExpanded = false },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Text("Close")
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -708,15 +728,14 @@ fun OverviewTabContent(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Large Prominent Generate Button
-                androidx.compose.material3.Button(
+                Button(
                     onClick = onStartGeneration,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Icon(Icons.Default.Bolt, contentDescription = null)
+                    Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Generate Audio", fontWeight = FontWeight.Bold)
+                    Text("Generate Audio", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 }
 
                 val container = (context.applicationContext as com.voconexus.app.VocoNexusApplication).container
@@ -770,7 +789,6 @@ fun OverviewTabContent(
                         }
                     }
 
-                    // Edit Script Outline Button
                     OutlinedButton(
                         onClick = onEditScript,
                         modifier = Modifier.weight(1f).height(48.dp),
@@ -799,22 +817,26 @@ fun PartsTabContent(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     if (parts.isEmpty()) {
-        VocoNexusEmptyState(
-            title = "No Parts Found",
-            description = "This script has not been split into parts yet."
-        )
+        Box(modifier = Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
+            VocoNexusEmptyState(
+                title = "No Parts Found",
+                description = "This script has not been split into parts yet."
+            )
+        }
     } else {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             if (job != null) {
-                Surface(
+                Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = "Generation Active: ${job.completedChunks} / ${job.totalChunks} Chunks",
@@ -832,7 +854,7 @@ fun PartsTabContent(
                         Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
                             progress = { job.progressFraction },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
                         )
                     }
                 }
@@ -848,32 +870,47 @@ fun PartsTabContent(
                 OutlinedButton(
                     onClick = {
                         selectedPartIds = if (isAllSelected || selectedPartIds.isNotEmpty()) emptySet() else parts.map { it.id }.toSet()
-                    }
+                    },
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(if (isAllSelected || selectedPartIds.isNotEmpty()) "Deselect All" else "Select All (${selectedPartIds.size}/${parts.size})")
+                    Text(
+                        text = if (isAllSelected || selectedPartIds.isNotEmpty()) "Deselect All" else "Select All (${selectedPartIds.size}/${parts.size})",
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
 
                 Button(
                     onClick = { viewModel.startGeneration(selectedPartIds = selectedPartIds.toList()) },
-                    enabled = selectedPartIds.isNotEmpty() || parts.isNotEmpty()
+                    enabled = selectedPartIds.isNotEmpty() || parts.isNotEmpty(),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Default.Bolt, contentDescription = null)
+                    Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Generate (${if (selectedPartIds.isEmpty()) parts.size else selectedPartIds.size})")
+                    Text(
+                        text = "Generate (${if (selectedPartIds.isEmpty()) parts.size else selectedPartIds.size})",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 items(parts, key = { it.id }) { part ->
                     val isSelected = selectedPartIds.contains(part.id)
                     val partChunks = remember(chunks, part.id) { chunks.filter { it.partId == part.id } }
                     val partScriptText = remember(partChunks) { partChunks.joinToString(" ") { it.normalizedText } }
 
-                    VocoNexusCard {
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -895,17 +932,17 @@ fun PartsTabContent(
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = "${part.chunkCount} Chunks • ${Formatters.formatNumber(part.wordCount.toLong())} words",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
 
                             if (partScriptText.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Surface(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                    shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
@@ -914,12 +951,12 @@ fun PartsTabContent(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(8.dp)
+                                        modifier = Modifier.padding(10.dp)
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End,
@@ -934,10 +971,10 @@ fun PartsTabContent(
                                         color = MaterialTheme.colorScheme.primaryContainer,
                                         modifier = Modifier.clickable { container.audioPreviewPlayer.pause() }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Pause, contentDescription = "Pause", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Pause", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            Text("Pause", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -946,10 +983,10 @@ fun PartsTabContent(
                                         color = MaterialTheme.colorScheme.errorContainer,
                                         modifier = Modifier.clickable { container.audioPreviewPlayer.stop() }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Stop, contentDescription = "Stop", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Stop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                            Text("Stop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 } else {
@@ -968,10 +1005,10 @@ fun PartsTabContent(
                                             }
                                         }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Play Preview", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            Text("Play Preview", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -981,10 +1018,10 @@ fun PartsTabContent(
                                     color = MaterialTheme.colorScheme.secondaryContainer,
                                     modifier = Modifier.clickable { viewModel.startGeneration(selectedPartIds = listOf(part.id)) }
                                 ) {
-                                    Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Bolt, contentDescription = "Generate", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Generate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                        Text("Generate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -1007,22 +1044,26 @@ fun ChunksTabContent(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     if (chunks.isEmpty()) {
-        VocoNexusEmptyState(
-            title = "No Chunks Found",
-            description = "No chunks available in this project."
-        )
+        Box(modifier = Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
+            VocoNexusEmptyState(
+                title = "No Chunks Found",
+                description = "No chunks available in this project."
+            )
+        }
     } else {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             if (job != null) {
-                Surface(
+                Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = "Generation Active: ${job.completedChunks} / ${job.totalChunks} Chunks",
@@ -1040,7 +1081,7 @@ fun ChunksTabContent(
                         Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
                             progress = { job.progressFraction },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
                         )
                     }
                 }
@@ -1056,29 +1097,44 @@ fun ChunksTabContent(
                 OutlinedButton(
                     onClick = {
                         selectedChunkIds = if (isAllSelected || selectedChunkIds.isNotEmpty()) emptySet() else chunks.map { it.id }.toSet()
-                    }
+                    },
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(if (isAllSelected || selectedChunkIds.isNotEmpty()) "Deselect All" else "Select All (${selectedChunkIds.size}/${chunks.size})")
+                    Text(
+                        text = if (isAllSelected || selectedChunkIds.isNotEmpty()) "Deselect All" else "Select All (${selectedChunkIds.size}/${chunks.size})",
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
 
                 Button(
                     onClick = { viewModel.startGeneration(selectedChunkIds = selectedChunkIds.toList()) },
-                    enabled = selectedChunkIds.isNotEmpty() || chunks.isNotEmpty()
+                    enabled = selectedChunkIds.isNotEmpty() || chunks.isNotEmpty(),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Default.Bolt, contentDescription = null)
+                    Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Generate (${if (selectedChunkIds.isEmpty()) chunks.size else selectedChunkIds.size})")
+                    Text(
+                        text = "Generate (${if (selectedChunkIds.isEmpty()) chunks.size else selectedChunkIds.size})",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 items(chunks, key = { it.id }) { chunk ->
                     val isSelected = selectedChunkIds.contains(chunk.id)
-                    VocoNexusCard {
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -1105,10 +1161,10 @@ fun ChunksTabContent(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
@@ -1117,11 +1173,11 @@ fun ChunksTabContent(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(8.dp)
+                                    modifier = Modifier.padding(10.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End,
@@ -1136,10 +1192,10 @@ fun ChunksTabContent(
                                         color = MaterialTheme.colorScheme.primaryContainer,
                                         modifier = Modifier.clickable { container.audioPreviewPlayer.pause() }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Pause, contentDescription = "Pause", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Pause", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            Text("Pause", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -1148,10 +1204,10 @@ fun ChunksTabContent(
                                         color = MaterialTheme.colorScheme.errorContainer,
                                         modifier = Modifier.clickable { container.audioPreviewPlayer.stop() }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Stop, contentDescription = "Stop", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Stop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                            Text("Stop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 } else {
@@ -1170,10 +1226,10 @@ fun ChunksTabContent(
                                             }
                                         }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Play", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            Text("Play", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -1183,10 +1239,10 @@ fun ChunksTabContent(
                                     color = MaterialTheme.colorScheme.secondaryContainer,
                                     modifier = Modifier.clickable { viewModel.startGeneration(selectedChunkIds = listOf(chunk.id)) }
                                 ) {
-                                    Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Bolt, contentDescription = "Generate", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Generate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                        Text("Generate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -1268,12 +1324,16 @@ fun GeneratedAudioTabContent(
             OutlinedButton(
                 onClick = {
                     selectedGroupIds = if (isAllSelected || selectedGroupIds.isNotEmpty()) emptySet() else partAudioGroups.map { it.id }.toSet()
-                }
+                },
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text(if (isAllSelected || selectedGroupIds.isNotEmpty()) "Deselect All" else "Select All (${selectedGroupIds.size}/${partAudioGroups.size})")
+                Text(
+                    text = if (isAllSelected || selectedGroupIds.isNotEmpty()) "Deselect All" else "Select All (${selectedGroupIds.size}/${partAudioGroups.size})",
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (selectedGroupIds.isNotEmpty()) {
                     IconButton(
                         onClick = {
@@ -1297,24 +1357,32 @@ fun GeneratedAudioTabContent(
                             android.widget.Toast.makeText(context, "Saved to Music/VocoNexus folder!", android.widget.Toast.LENGTH_LONG).show()
                         }
                     },
-                    enabled = !isCombining && (partAudioGroups.isNotEmpty() || audioAssets.isNotEmpty())
+                    enabled = !isCombining && (partAudioGroups.isNotEmpty() || audioAssets.isNotEmpty()),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Default.Download, contentDescription = null)
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isCombining) "Stitching..." else "Combine & Export (${if (selectedGroupIds.isEmpty()) partAudioGroups.size else selectedGroupIds.size})")
+                    Text(
+                        text = if (isCombining) "Stitching..." else "Combine & Export (${if (selectedGroupIds.isEmpty()) partAudioGroups.size else selectedGroupIds.size})",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
 
         if (partAudioGroups.isEmpty() && audioAssets.isEmpty()) {
-            VocoNexusEmptyState(
-                title = "No Generated Audio Parts",
-                description = "Select parts from the Parts tab and tap Generate to create audio."
-            )
+            Box(modifier = Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
+                VocoNexusEmptyState(
+                    title = "No Generated Audio Parts",
+                    description = "Select parts from the Parts tab and tap Generate to create audio."
+                )
+            }
         } else {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 items(partAudioGroups, key = { "group_${it.id}" }) { group ->
                     val isSelected = selectedGroupIds.contains(group.id)
@@ -1326,8 +1394,13 @@ fun GeneratedAudioTabContent(
 
                     val isThisGroupPlaying = activeVoiceId == group.id && isPlayingPreview
 
-                    VocoNexusCard {
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -1353,12 +1426,13 @@ fun GeneratedAudioTabContent(
                                         )
                                         Surface(
                                             color = MaterialTheme.colorScheme.primaryContainer,
-                                            shape = RoundedCornerShape(4.dp)
+                                            shape = RoundedCornerShape(6.dp)
                                         ) {
                                             Text(
                                                 text = "WAV PART",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         }
@@ -1366,7 +1440,7 @@ fun GeneratedAudioTabContent(
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = "${group.completedChunkCount}/${group.chunkCount} Chunks • ${Formatters.formatDurationMs(group.totalDurationMs)} • ${Formatters.formatFileSize(group.totalSizeBytes)}",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -1382,7 +1456,7 @@ fun GeneratedAudioTabContent(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text(Formatters.formatDurationMs(currentMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                        Text(Formatters.formatDurationMs(currentMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                         Text(Formatters.formatDurationMs(totalMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Slider(
@@ -1396,7 +1470,7 @@ fun GeneratedAudioTabContent(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End,
@@ -1408,10 +1482,10 @@ fun GeneratedAudioTabContent(
                                         color = MaterialTheme.colorScheme.primaryContainer,
                                         modifier = Modifier.clickable { container.audioPreviewPlayer.pause() }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Pause, contentDescription = "Pause", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Pause", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            Text("Pause", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -1420,10 +1494,10 @@ fun GeneratedAudioTabContent(
                                         color = MaterialTheme.colorScheme.errorContainer,
                                         modifier = Modifier.clickable { container.audioPreviewPlayer.stop() }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Stop, contentDescription = "Stop", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Stop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                            Text("Stop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 } else {
@@ -1441,10 +1515,10 @@ fun GeneratedAudioTabContent(
                                             }
                                         }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.PlayArrow, contentDescription = "Play Audio", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text(if (activeVoiceId == group.id) "Resume" else "Play", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            Text("Play Audio", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }

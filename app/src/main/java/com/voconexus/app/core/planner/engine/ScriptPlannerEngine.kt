@@ -10,6 +10,7 @@ import com.voconexus.app.core.planner.part.PlannedPart
 import com.voconexus.app.core.planner.segmentation.SentenceSegmenter
 import com.voconexus.app.core.planner.validation.PlanValidator
 import com.voconexus.app.core.planner.validation.ValidationResult
+import com.voconexus.app.core.utils.FastTextHelpers
 import java.util.UUID
 
 enum class PlanStatus {
@@ -80,7 +81,7 @@ class ScriptPlannerEngine(
 
         // 5. Statistics Computation
         val allChunks = parts.flatMap { it.chunks }
-        val totalWords = Regex("""[\p{L}\p{N}]+""").findAll(rawDocumentText).count()
+        val totalWords = FastTextHelpers.fastWordCount(rawDocumentText)
         val totalChars = rawDocumentText.length
         val totalDurationMs = allChunks.sumOf { it.estimatedDurationMs }
 
