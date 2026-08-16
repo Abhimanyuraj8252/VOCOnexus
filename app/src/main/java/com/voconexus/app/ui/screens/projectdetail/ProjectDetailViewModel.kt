@@ -108,14 +108,42 @@ class ProjectDetailViewModel(
     ) {
         viewModelScope.launch {
             try {
+                val proj = projectState.value
+                val speed = proj?.speed ?: 1.0f
+                val pitch = proj?.pitch ?: 0.0f
+                val firstChunk = chunksState.value.firstOrNull()
+                val targetVoiceId = firstChunk?.voiceId?.ifBlank { null } ?: "hi-IN-SwaraNeural"
+                val targetEngineId = firstChunk?.engineId?.ifBlank { null } ?: (userPrefsManager?.preferences?.value?.defaultEngineId ?: "edge-tts")
+
                 generationRepository.createAndStartJob(
                     projectId = projectId,
                     documentId = documentId,
+                    engineId = targetEngineId,
+                    voiceId = targetVoiceId,
+                    speed = speed,
+                    pitch = pitch,
                     selectedChunkIds = selectedChunkIds,
                     selectedPartIds = selectedPartIds
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
+        }
+    }
+
+    fun pauseJob() {
+        viewModelScope.launch {
+            try {
+                generationRepository.pauseActiveJob(projectId)
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun cancelJob() {
+        viewModelScope.launch {
+            try {
+                generationRepository.cancelActiveJob(projectId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -141,6 +169,7 @@ class ProjectDetailViewModel(
                             if (f.exists()) f.delete()
                         }
                     }
+                    projectRepository.resetChunkAudio(chunkId)
                 } catch (_: Exception) {}
             }
         }
@@ -151,11 +180,13 @@ class ProjectDetailViewModel(
             try {
                 val srcFile = File(sourcePath)
                 if (srcFile.exists()) {
-                    val downloadDir = File("/storage/emulated/0/Download/VocoNexus").also { if (!it.exists()) it.mkdirs() }
-                    val destFile = File(downloadDir, fileName)
+                    val projTitle = projectState.value?.title ?: "Project"
+                    val sanitizedTitle = projTitle.replace("[^a-zA-Z0-9_-]".toRegex(), "_")
+                    val projectMusicDir = File("/storage/emulated/0/Music/VocoNexus/${sanitizedTitle}").also { if (!it.exists()) it.mkdirs() }
+                    val destFile = File(projectMusicDir, "${sanitizedTitle}_${fileName}")
                     srcFile.copyTo(destFile, overwrite = true)
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, "Saved to Downloads/VocoNexus/${fileName}", android.widget.Toast.LENGTH_LONG).show()
+                        android.widget.Toast.makeText(context, "Saved to Music/VocoNexus/${sanitizedTitle}/${destFile.name}", android.widget.Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
@@ -171,9 +202,12 @@ class ProjectDetailViewModel(
         projectTitle: String
     ): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val validChunksWithAudio = selectedChunks.filter { it.audioPath.hasValidAudioFile() }
-        val musicDir = File("/storage/emulated/0/Music/VocoNexus").also { if (!it.exists()) it.mkdirs() }
         val sanitizedTitle = projectTitle.replace("[^a-zA-Z0-9_-]".toRegex(), "_")
-        val outputFile = File(musicDir, "${sanitizedTitle}_Combined_${System.currentTimeMillis()}.wav")
+        val projectMusicDir = File("/storage/emulated/0/Music/VocoNexus/${sanitizedTitle}").also { if (!it.exists()) it.mkdirs() }
+
+        val seqNumbers = validChunksWithAudio.map { it.sequenceIndex + 1 }.distinct().sorted()
+        val numLabel = if (seqNumbers.size == 1) "Part_${seqNumbers.first()}" else "Parts_${seqNumbers.joinToString("_")}"
+        val outputFile = File(projectMusicDir, "${sanitizedTitle}_${numLabel}.wav")
 
         var totalPcmSize = 0L
         val sampleRate = 24000

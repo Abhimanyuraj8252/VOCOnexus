@@ -153,6 +153,9 @@ interface ChunkDao {
     @Update
     suspend fun updateChunk(chunk: ChunkEntity)
 
+    @Query("UPDATE chunks SET status = 'PENDING', audioPath = NULL, durationMs = 0, fileSizeBytes = 0 WHERE id = :chunkId")
+    suspend fun resetChunkAudio(chunkId: String)
+
     @Query("UPDATE chunks SET status = :status, updatedAt = :updatedAt WHERE id = :chunkId")
     suspend fun updateChunkStatus(chunkId: String, status: ChunkStatus, updatedAt: Long)
 

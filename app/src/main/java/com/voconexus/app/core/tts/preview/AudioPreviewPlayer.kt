@@ -78,6 +78,24 @@ class AudioPreviewPlayer(private val context: Context) {
         }
     }
 
+    fun pause() {
+        mainHandler.post {
+            try {
+                exoPlayer?.pause()
+            } catch (_: Exception) {}
+            _isPlaying.value = false
+        }
+    }
+
+    fun resume() {
+        mainHandler.post {
+            try {
+                exoPlayer?.play()
+            } catch (_: Exception) {}
+            _isPlaying.value = true
+        }
+    }
+
     /**
      * Stop playback. Safe to call from any thread.
      */

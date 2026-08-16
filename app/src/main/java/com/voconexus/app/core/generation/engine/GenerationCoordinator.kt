@@ -49,10 +49,14 @@ class GenerationCoordinator(
 
     suspend fun executeJob(jobId: String): Boolean = withContext(Dispatchers.IO) {
         val job = jobDao.getJobById(jobId) ?: return@withContext false
-        val document = documentDao.getDocumentById(job.documentId) ?: return@withContext false
+        val document = if (job.documentId.isNotBlank()) {
+            documentDao.getDocumentById(job.documentId)
+        } else {
+            documentDao.getDocumentForProject(job.projectId)
+        }
 
-        // Check Stale Plan Protection
-        if (document.planStatus == "STALE" || document.planStatus == "NOT_ANALYZED") {
+        // Check Stale Plan Protection if document exists
+        if (document != null && (document.planStatus == "STALE")) {
             jobDao.updateJobStatus(jobId, GenerationJobStatus.FAILED, null)
             jobDao.updateJob(job.copy(errorMessage = "Script structure is stale. Please re-analyze before generating."))
             return@withContext false
@@ -136,19 +140,23 @@ class GenerationCoordinator(
                         }
                     } ?: 24000
 
-                    audioSink.open(tempFile, targetSampleRate, 1)
-
                     val settings = SynthesisSettings(speed = job.speed, pitch = job.pitch, sampleRate = targetSampleRate)
                     val synthesizedAudio = engine.synthesize(chunk.normalizedText, job.voiceId, settings)
 
-                    audioSink.writePcm(synthesizedAudio.pcmData)
-                    val durationMs = audioSink.flushAndClose()
+                    if (synthesizedAudio.encoding == com.voconexus.app.core.tts.AudioEncoding.MP3) {
+                        tempFile.writeBytes(synthesizedAudio.pcmData)
+                    } else {
+                        audioSink.open(tempFile, targetSampleRate, 1)
+                        audioSink.writePcm(synthesizedAudio.pcmData)
+                        audioSink.flushAndClose()
+                    }
 
                     // Validate generated temporary audio
                     val valResult = audioValidator.validateWavFile(tempFile)
                     if (!valResult.isValid) {
-                        throw Exception(valResult.errorMessage ?: "Generated WAV validation failed")
+                        throw Exception(valResult.errorMessage ?: "Generated audio validation failed")
                     }
+                    val durationMs = valResult.durationMs
 
                     // Record measurement locally for adaptive duration estimation
                     durationHistoryStore?.recordMeasurement(

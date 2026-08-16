@@ -53,6 +53,7 @@ interface ProjectRepository {
     suspend fun commitScriptPlan(projectId: String, plan: ScriptAnalysisPlan)
     suspend fun invalidatePlan(projectId: String)
     suspend fun deleteProjectSafely(projectId: String)
+    suspend fun resetChunkAudio(chunkId: String)
 }
 
 class ProjectRepositoryImpl(
@@ -346,5 +347,9 @@ class ProjectRepositoryImpl(
         projectDao.updateProjectStatus(projectId, "DELETING", currentTime)
         storageManager.deleteProjectAudioAsync(projectId)
         projectDao.deleteProjectById(projectId)
+    }
+
+    override suspend fun resetChunkAudio(chunkId: String) = withContext(Dispatchers.IO) {
+        chunkDao.resetChunkAudio(chunkId)
     }
 }

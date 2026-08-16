@@ -80,7 +80,7 @@ class GenerationRepositoryImpl(
     ): GenerationJob = withContext(Dispatchers.IO) {
         val activeJob = jobDao.getActiveJobForProject(projectId)
         if (activeJob != null) {
-            return@withContext activeJob.toDomainJob()
+            jobDao.updateJobStatus(activeJob.id, GenerationJobStatus.CANCELLED, null)
         }
 
         val chunks = chunkDao.getChunksForProject(projectId)
@@ -108,12 +108,10 @@ class GenerationRepositoryImpl(
                 queuedCount += chunks.count { it.partId in selectedPartIds && it.id !in selectedChunkIds }
             }
         } else {
-             // Generate all that are not completed
+             // Force queue all chunks in project
              chunks.forEach {
-                 if (it.status != ChunkStatus.COMPLETED) {
-                     chunkDao.updateChunkStatus(it.id, ChunkStatus.QUEUED, System.currentTimeMillis())
-                     queuedCount++
-                 }
+                 chunkDao.updateChunkStatus(it.id, ChunkStatus.QUEUED, System.currentTimeMillis())
+                 queuedCount++
              }
         }
 

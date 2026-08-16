@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -27,6 +28,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,8 +61,14 @@ fun SpeechControlsCard(
     onStopPreviewClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var speedInputText by remember(speed) { mutableStateOf(String.format(java.util.Locale.US, "%.4f", speed).trimEnd('0').trimEnd('.')) }
+    var pitchInputText by remember(pitchSemitones) { mutableStateOf(String.format(java.util.Locale.US, "%.4f", pitchSemitones).trimEnd('0').trimEnd('.')) }
+    var targetInputText by remember(targetDurationMs) {
+        mutableStateOf(if (targetDurationMs > 0L) Formatters.formatDurationMs(targetDurationMs) else "")
+    }
+
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().imePadding(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -80,30 +89,49 @@ fun SpeechControlsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 1. TTS Generation Speed Section
-            Text("TTS Generation Speed", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            // 1. TTS Generation Speed Section (Slider + High Precision Manual Decimal Input)
+            Text("TTS Generation Speed (Manual Decimal Input)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(String.format("%.2fx", speed), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                Text(if (speed < 0.75f || speed > 1.75f) "Extreme Speed" else "Recommended Range (0.75x–1.75x)", style = MaterialTheme.typography.labelSmall)
+                OutlinedTextField(
+                    value = speedInputText,
+                    onValueChange = { input ->
+                        speedInputText = input
+                        input.toFloatOrNull()?.let { parsed ->
+                            if (parsed > 0.05f) onSpeedChange(parsed)
+                        }
+                    },
+                    modifier = Modifier.width(130.dp),
+                    label = { Text("Speed (x)") },
+                    singleLine = true
+                )
+                Text(
+                    text = if (speed < 0.75f || speed > 1.75f) "Custom Decimal Speed" else "Recommended (0.75x–1.75x)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+            Spacer(modifier = Modifier.height(4.dp))
             Slider(
-                value = speed,
-                onValueChange = { onSpeedChange((Math.round(it * 20) / 20.0f)) },
-                valueRange = 0.5f..2.5f,
-                steps = 39,
+                value = speed.coerceIn(0.2f, 3.0f),
+                onValueChange = {
+                    val rounded = Math.round(it * 100) / 100.0f
+                    onSpeedChange(rounded)
+                },
+                valueRange = 0.2f..3.0f,
                 modifier = Modifier.fillMaxWidth()
             )
+
             // Speed Presets
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { preset ->
+                listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.1615f).forEach { preset ->
                     AssistChip(
                         onClick = { onSpeedChange(preset) },
                         label = { Text("${preset}x") }
@@ -122,33 +150,52 @@ fun SpeechControlsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 2. Pitch Shift Section
-            Text("Generated Pitch (Semitones)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            // 2. Pitch Shift Section (Slider + High Precision Manual Decimal Input)
+            Text("Generated Pitch (Manual Decimal Input)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(String.format("%+.1f st", pitchSemitones), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                Text("Recommended (-4.0 to +4.0 st)", style = MaterialTheme.typography.labelSmall)
+                OutlinedTextField(
+                    value = pitchInputText,
+                    onValueChange = { input ->
+                        pitchInputText = input
+                        input.toFloatOrNull()?.let { parsed ->
+                            onPitchChange(parsed)
+                        }
+                    },
+                    modifier = Modifier.width(130.dp),
+                    label = { Text("Pitch (st)") },
+                    singleLine = true
+                )
+                Text(
+                    text = "Recommended (-4.0 to +4.0 st)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+            Spacer(modifier = Modifier.height(4.dp))
             Slider(
-                value = pitchSemitones,
-                onValueChange = { onPitchChange((Math.round(it * 2) / 2.0f)) },
+                value = pitchSemitones.coerceIn(-12.0f, 12.0f),
+                onValueChange = {
+                    val rounded = Math.round(it * 10) / 10.0f
+                    onPitchChange(rounded)
+                },
                 valueRange = -12.0f..12.0f,
-                steps = 47,
                 modifier = Modifier.fillMaxWidth()
             )
+
             // Pitch Presets
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf(-4.0f, -2.0f, 0.0f, 2.0f, 4.0f).forEach { preset ->
+                listOf(-4.0f, -2.0f, 0.0f, 0.82f, 2.0f, 4.0f).forEach { preset ->
                     AssistChip(
                         onClick = { onPitchChange(preset) },
-                        label = { Text("%+.0f st".format(preset)) }
+                        label = { Text("%+.2f st".format(preset)) }
                     )
                 }
             }
@@ -164,51 +211,157 @@ fun SpeechControlsCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. Target Duration Section
-            Text("Target Duration", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(4.dp))
+            // 3. Target Duration Section with Hours, Minutes, Seconds Picker Dialog
+            var showDurationDialog by remember { mutableStateOf(false) }
 
-            var targetInputText by remember(targetDurationMs) {
-                mutableStateOf(if (targetDurationMs > 0L) Formatters.formatDurationMs(targetDurationMs) else "")
-            }
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Script Natural Duration", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                text = formatDurationHms(estimatedDurationMs),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("Target Duration", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                text = if (targetDurationMs > 0L) formatDurationHms(targetDurationMs) else "Not Set",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (targetDurationMs > 0L) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = targetInputText,
-                    onValueChange = { input ->
-                        targetInputText = input
-                        val parsedMs = parseDurationStringToMs(input)
-                        onTargetDurationChange(parsedMs)
-                    },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("01:30:00 (HH:MM:SS) or Off") },
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Timer, contentDescription = null) }
-                )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                if (targetDurationMs > 0L) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = {
-                        targetInputText = ""
-                        onTargetDurationChange(0L)
-                    }) {
-                        Text("Reset")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { showDurationDialog = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Timer, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Edit Target Duration (hr, min, sec)")
+                        }
+
+                        if (targetDurationMs > 0L) {
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {
+                                    onTargetDurationChange(0L)
+                                    onSpeedChange(1.0f)
+                                    onPitchChange(0.0f)
+                                }
+                            ) {
+                                Text("Reset")
+                            }
+                        }
+                    }
+
+                    if (estimatedDurationMs > 0L && targetDurationMs > 0L) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val ratio = estimatedDurationMs.toFloat() / targetDurationMs.toFloat()
+                        Text(
+                            text = "Auto Calculated Speed: %.4fx (Pitch adjusted naturally)".format(java.util.Locale.US, ratio),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
 
-            if (estimatedDurationMs > 0L && targetDurationMs > 0L) {
-                Spacer(modifier = Modifier.height(8.dp))
-                val ratio = targetDurationMs.toFloat() / estimatedDurationMs.toFloat()
-                val compressionPct = ((1.0f - ratio) * 100).toInt()
+            if (showDurationDialog) {
+                var hrText by remember { mutableStateOf((targetDurationMs / 3600000L).toString()) }
+                var minText by remember { mutableStateOf(((targetDurationMs % 3600000L) / 60000L).toString()) }
+                var secText by remember { mutableStateOf(((targetDurationMs % 60000L) / 1000L).toString()) }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Estimated: ${Formatters.formatDurationMs(estimatedDurationMs)}", style = MaterialTheme.typography.bodySmall)
-                    Text("Target: ${Formatters.formatDurationMs(targetDurationMs)}", style = MaterialTheme.typography.bodySmall)
-                    Text("Ratio: ≈ ${String.format("%.2f", ratio)}x ($compressionPct%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                androidx.compose.ui.window.Dialog(onDismissRequest = { showDurationDialog = false }) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text("Set Target Duration", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Specify exact hours, minutes, and seconds for script playback.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = hrText,
+                                    onValueChange = { hrText = it },
+                                    label = { Text("Hours") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = minText,
+                                    onValueChange = { minText = it },
+                                    label = { Text("Minutes") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = secText,
+                                    onValueChange = { secText = it },
+                                    label = { Text("Seconds") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                androidx.compose.material3.TextButton(onClick = { showDurationDialog = false }) {
+                                    Text("Cancel")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = {
+                                        val hrs = hrText.toLongOrNull() ?: 0L
+                                        val mins = minText.toLongOrNull() ?: 0L
+                                        val secs = secText.toLongOrNull() ?: 0L
+                                        val totalMs = (hrs * 3600 + mins * 60 + secs) * 1000L
+                                        onTargetDurationChange(totalMs)
+                                        if (totalMs > 0L && estimatedDurationMs > 0L) {
+                                            val autoSpeed = estimatedDurationMs.toFloat() / totalMs.toFloat()
+                                            val autoPitchCompensation = (autoSpeed - 1.0f) * 0.8f
+                                            onSpeedChange(Math.round(autoSpeed * 10000) / 10000.0f)
+                                            onPitchChange(Math.round(autoPitchCompensation * 100) / 100.0f)
+                                        }
+                                        showDurationDialog = false
+                                    }
+                                ) {
+                                    Text("Apply Target Duration")
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -224,7 +377,6 @@ fun SpeechControlsCard(
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isPreviewPlaying) "Stop Speech Preview" else "Preview Speech Settings (Short Sample)")
             }
         }
     }
@@ -245,6 +397,15 @@ private fun NaturalnessBadge(level: NaturalnessLevel) {
     ) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = textColor, fontWeight = FontWeight.Bold)
     }
+}
+
+private fun formatDurationHms(durationMs: Long): String {
+    if (durationMs <= 0L) return "00h 00m 00s"
+    val totalSeconds = durationMs / 1000L
+    val hours = totalSeconds / 3600L
+    val minutes = (totalSeconds % 3600L) / 60L
+    val seconds = totalSeconds % 60L
+    return "%02dh %02dm %02ds".format(hours, minutes, seconds)
 }
 
 private fun parseDurationStringToMs(input: String): Long {
