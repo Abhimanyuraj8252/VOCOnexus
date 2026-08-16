@@ -1,17 +1,15 @@
-# Build outputs
-build/
-.gradle/
+*.iml
+.gradle
 .gradle-home/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Local
+.gradle_home/
+scratch/
+classes.jar
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
 local.properties
 
-# OS
-.DS_Store
-Thumbs.db
