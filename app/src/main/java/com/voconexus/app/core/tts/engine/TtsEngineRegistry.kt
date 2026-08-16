@@ -27,11 +27,21 @@ class TtsEngineRegistry(
     }
 
     fun getEngine(engineId: String): TtsEngine? {
-        return engines[engineId]
+        val exact = engines[engineId]
+        if (exact != null) return exact
+        val norm = engineId.lowercase()
+        return engines.values.find { engine ->
+            val eid = engine.id.lowercase()
+            (norm.contains("kokoro") && eid.contains("kokoro")) ||
+            (norm.contains("piper") && eid.contains("piper")) ||
+            (norm.contains("sherpa") && eid.contains("sherpa")) ||
+            (norm.contains("edge") && eid.contains("edge")) ||
+            (norm.contains("google") && eid.contains("google"))
+        }
     }
 
     fun getRequiredEngine(engineId: String): TtsEngine {
-        return engines[engineId] ?: engines["fake-tts"] ?: engines.values.firstOrNull()
+        return getEngine(engineId) ?: engines["fake-tts"] ?: engines.values.firstOrNull()
         ?: throw IllegalStateException("No TTS engines registered in TtsEngineRegistry")
     }
 

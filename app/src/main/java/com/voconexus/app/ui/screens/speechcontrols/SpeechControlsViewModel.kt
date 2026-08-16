@@ -135,10 +135,19 @@ class SpeechControlsViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isPreviewPlaying = true)
             try {
-                val engineId = prefsManager.preferences.value.defaultEngineId
+                val isKokoroVoice = voiceId.startsWith("hf_") || voiceId.startsWith("hm_") ||
+                    voiceId.startsWith("af_") || voiceId.startsWith("am_") ||
+                    voiceId.startsWith("bf_") || voiceId.startsWith("bm_") ||
+                    voiceId.startsWith("ff_") || voiceId.startsWith("ef_") ||
+                    voiceId.startsWith("em_") || voiceId.startsWith("if_") ||
+                    voiceId.startsWith("jf_") || voiceId.startsWith("zf_") || voiceId.startsWith("zm_") ||
+                    voiceId.contains("alpha", ignoreCase = true) || voiceId.contains("beta", ignoreCase = true) ||
+                    voiceId.contains("omega", ignoreCase = true) || voiceId.contains("psi", ignoreCase = true)
+
+                val targetEngineId = if (isKokoroVoice) "kokoro-v1.0" else prefsManager.preferences.value.defaultEngineId
                 val success = previewManager.playSpeechPreview(
                     voiceId = voiceId,
-                    engineId = engineId,
+                    engineId = targetEngineId,
                     speed = _uiState.value.speed,
                     pitchSemitones = _uiState.value.pitchSemitones
                 )

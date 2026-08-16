@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.Slider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.clickable
@@ -718,55 +719,54 @@ fun OverviewTabContent(
                     Text("Generate Audio", fontWeight = FontWeight.Bold)
                 }
 
+                val container = (context.applicationContext as com.voconexus.app.VocoNexusApplication).container
+                val isPlayingPreview by container.audioPreviewPlayer.isPlaying.collectAsState()
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val container = (context.applicationContext as com.voconexus.app.VocoNexusApplication).container
-                    val isPlayingPreview by container.audioPreviewPlayer.isPlaying.collectAsState()
-
-                    Row(modifier = Modifier.weight(1f)) {
-                        if (isPlayingPreview) {
-                            OutlinedButton(
-                                onClick = { container.audioPreviewPlayer.pause() },
-                                modifier = Modifier.weight(1f).height(48.dp),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.Pause, contentDescription = "Pause")
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Pause")
-                            }
+                    if (isPlayingPreview) {
+                        OutlinedButton(
+                            onClick = { container.audioPreviewPlayer.pause() },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Pause, contentDescription = "Pause", modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            OutlinedButton(
-                                onClick = { container.audioPreviewPlayer.stop() },
-                                modifier = Modifier.height(48.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                            ) {
-                                Icon(Icons.Default.Stop, contentDescription = "Stop")
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = {
-                                    kotlinx.coroutines.MainScope().launch {
-                                        try {
-                                            val textToPlay = chunks.joinToString(" ") { it.normalizedText }.take(1000)
-                                            val defaultEngineId = container.userPreferencesManager.preferences.value.defaultEngineId
-                                            container.speechPreviewManager.playSpeechPreview(
-                                                sampleText = textToPlay.ifBlank { "No text available." },
-                                                voiceId = currentVoiceId,
-                                                engineId = defaultEngineId
-                                            )
-                                        } catch (e: Exception) { e.printStackTrace() }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f).height(48.dp),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Play Script")
-                            }
+                            Text("Pause", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        OutlinedButton(
+                            onClick = { container.audioPreviewPlayer.stop() },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Stop, contentDescription = "Stop", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Stop", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = {
+                                kotlinx.coroutines.MainScope().launch {
+                                    try {
+                                        val textToPlay = chunks.joinToString(" ") { it.normalizedText }.take(1000)
+                                        container.speechPreviewManager.playSpeechPreview(
+                                            sampleText = textToPlay.ifBlank { "No text available." },
+                                            voiceId = currentVoiceId,
+                                            engineId = currentEngineId
+                                        )
+                                    } catch (e: Exception) { e.printStackTrace() }
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Play Script", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Play Script", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
 
@@ -776,9 +776,9 @@ fun OverviewTabContent(
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = null)
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Script", modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Edit Script")
+                        Text("Edit Script", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -1320,6 +1320,11 @@ fun GeneratedAudioTabContent(
                     val isSelected = selectedGroupIds.contains(group.id)
                     val container = (context.applicationContext as com.voconexus.app.VocoNexusApplication).container
                     val isPlayingPreview by container.audioPreviewPlayer.isPlaying.collectAsState()
+                    val activeVoiceId by container.audioPreviewPlayer.activeVoiceId.collectAsState()
+                    val currentPositionMs by container.audioPreviewPlayer.currentPositionMs.collectAsState()
+                    val playerDurationMs by container.audioPreviewPlayer.durationMs.collectAsState()
+
+                    val isThisGroupPlaying = activeVoiceId == group.id && isPlayingPreview
 
                     VocoNexusCard {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -1367,13 +1372,37 @@ fun GeneratedAudioTabContent(
                                 }
                             }
 
+                            if (activeVoiceId == group.id) {
+                                val totalMs = if (playerDurationMs > 0L) playerDurationMs else group.totalDurationMs
+                                val currentMs = currentPositionMs.coerceIn(0L, totalMs.coerceAtLeast(1L))
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(Formatters.formatDurationMs(currentMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                        Text(Formatters.formatDurationMs(totalMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Slider(
+                                        value = currentMs.toFloat(),
+                                        onValueChange = { newPos ->
+                                            container.audioPreviewPlayer.seekTo(newPos.toLong())
+                                        },
+                                        valueRange = 0f..totalMs.coerceAtLeast(1L).toFloat(),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (isPlayingPreview) {
+                                if (isThisGroupPlaying) {
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
                                         color = MaterialTheme.colorScheme.primaryContainer,
@@ -1402,16 +1431,20 @@ fun GeneratedAudioTabContent(
                                         shape = RoundedCornerShape(8.dp),
                                         color = MaterialTheme.colorScheme.primaryContainer,
                                         modifier = Modifier.clickable {
-                                            val firstFile = group.chunks.firstOrNull()?.audioPath?.let { File(it) }
-                                            if (firstFile != null && firstFile.exists()) {
-                                                container.audioPreviewPlayer.playPreview(group.id, firstFile)
+                                            if (activeVoiceId == group.id && !isPlayingPreview) {
+                                                container.audioPreviewPlayer.resume()
+                                            } else {
+                                                val firstFile = group.chunks.firstOrNull()?.audioPath?.let { File(it) }
+                                                if (firstFile != null && firstFile.exists()) {
+                                                    container.audioPreviewPlayer.playPreview(group.id, firstFile)
+                                                }
                                             }
                                         }
                                     ) {
                                         Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Play", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            Text(if (activeVoiceId == group.id) "Resume" else "Play", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                                         }
                                     }
                                 }

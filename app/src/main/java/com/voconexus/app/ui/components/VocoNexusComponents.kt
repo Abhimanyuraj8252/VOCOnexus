@@ -516,16 +516,6 @@ fun VocoNexusBottomNav(
             )
         )
         NavigationBarItem(
-            selected = currentRoute == "audio",
-            onClick = onNavigateAudio,
-            icon = { Icon(Icons.Default.AudioFile, contentDescription = "Audio") },
-            label = { Text("Audio") },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.primary,
-                indicatorColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        )
-        NavigationBarItem(
             selected = currentRoute == "settings",
             onClick = onNavigateSettings,
             icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },

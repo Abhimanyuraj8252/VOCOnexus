@@ -68,24 +68,46 @@ class KokoroEngine(
 
     // Correct Kokoro speaker ID mapping (matches voices.bin order)
     private val VOICE_SID_MAP = mapOf(
-        "af_heart"   to 0,
-        "af_bella"   to 1,
-        "af_nicole"  to 2,
-        "af_sky"     to 3,
-        "am_adam"    to 4,
-        "am_michael" to 5,
-        "bf_emma"    to 6,
-        "bm_george"  to 7,
-        "hf_alpha"   to 8,
-        "hf_beta"    to 9,
-        "hm_omega"   to 10,
-        "hf_psi"     to 11,
-        "ff_siwis"   to 12,
-        "ef_dora"    to 13,
-        "if_sara"    to 14,
-        "jf_alpha"   to 15,
-        "zf_xiaoxiao" to 16,
-        "zm_yunjian" to 17
+        "af_heart"    to 0,
+        "af_bella"    to 1,
+        "af_nicole"   to 2,
+        "af_sky"      to 3,
+        "am_adam"     to 4,
+        "am_michael"  to 5,
+        "bf_emma"     to 6,
+        "bm_george"   to 7,
+        "hf_alpha"    to 8,
+        "hf_beta"     to 9,
+        "hm_omega"    to 10,
+        "hf_psi"      to 11,
+        "ff_siwis"    to 12,
+        "ef_dora"     to 13,
+        "em_alex"     to 14,
+        "if_sara"     to 15,
+        "jf_alpha"    to 16,
+        "zf_xiaoxiao" to 17,
+        "zm_yunjian"  to 18
+    )
+
+    private val KEYWORD_SID_MAP = mapOf(
+        "omega"    to 10,
+        "adam"     to 4,
+        "michael"  to 5,
+        "george"   to 7,
+        "alex"     to 14,
+        "yunjian"  to 18,
+        "beta"     to 9,
+        "alpha"    to 8,
+        "psi"      to 11,
+        "heart"    to 0,
+        "bella"    to 1,
+        "nicole"   to 2,
+        "sky"      to 3,
+        "emma"     to 6,
+        "siwis"    to 12,
+        "dora"     to 13,
+        "sara"     to 15,
+        "xiaoxiao" to 16
     )
 
     private var activeModelId: String = "kokoro-v1.0"
@@ -163,17 +185,35 @@ class KokoroEngine(
         activeModelId = modelId
         activeModelPath = modelPath
 
-        if (modelPath.isBlank()) {
+        var resolvedPath = modelPath
+        var targetDir = File(resolvedPath)
+
+        if (resolvedPath.isBlank() || !targetDir.exists() || targetDir.walkTopDown().none { it.name.endsWith(".onnx") }) {
+            val candidateDirs = listOf(
+                File("/data/user/0/com.voconexus.app/files/models/installed/$modelId"),
+                File("/data/user/0/com.voconexus.app/files/models/installed/kokoro-v1.0"),
+                File("/data/user/0/com.voconexus.app/files/models/$modelId"),
+                File("/data/user/0/com.voconexus.app/files/models/kokoro-v1.0"),
+                File("/data/user/0/com.voconexus.app/files/models"),
+                File("/data/user/0/com.voconexus.app/files")
+            )
+            val foundOnnx = candidateDirs.firstNotNullOfOrNull { dir ->
+                if (dir.exists()) dir.walkTopDown().firstOrNull { f -> f.name.endsWith(".onnx") } else null
+            }
+            if (foundOnnx != null) {
+                targetDir = foundOnnx.parentFile ?: targetDir
+                resolvedPath = targetDir.absolutePath
+            }
+        }
+
+        if (resolvedPath.isBlank() || !targetDir.exists()) {
             _lifecycleState.value = EngineLifecycleState.ERROR
-            throw TtsEngineException.ModelCorruptedException(modelId, "Model path is empty")
+            throw TtsEngineException.ModelCorruptedException(modelId, "Model path is empty and no valid model found in storage")
         }
 
         // Resolve the actual directory containing the .onnx file
-        var targetDir = File(modelPath)
         if (targetDir.listFiles()?.none { it.name.endsWith(".onnx") } == true) {
-            targetDir.listFiles { f -> f.isDirectory }
-                ?.firstOrNull { dir -> dir.listFiles()?.any { it.name.endsWith(".onnx") } == true }
-                ?.let { targetDir = it }
+            targetDir.walkTopDown().firstOrNull { f -> f.name.endsWith(".onnx") }?.parentFile?.let { targetDir = it }
         }
 
         val modelFile = targetDir.listFiles()?.firstOrNull { it.name.endsWith(".onnx") }
@@ -255,11 +295,12 @@ class KokoroEngine(
 
         try {
             val speed = settings.speed.coerceIn(0.5f, 2.0f)
+            val lowerVoice = voiceId.lowercase()
 
-            // Exact voice ID match first, then fuzzy keyword fallback
-            val sid = VOICE_SID_MAP[voiceId.lowercase()]
-                ?: VOICE_SID_MAP.entries.firstOrNull { voiceId.contains(it.key, ignoreCase = true) }?.value
-                ?: 0
+            val sid = VOICE_SID_MAP[lowerVoice]
+                ?: VOICE_SID_MAP.entries.firstOrNull { lowerVoice.contains(it.key) }?.value
+                ?: KEYWORD_SID_MAP.entries.firstOrNull { lowerVoice.contains(it.key) }?.value
+                ?: if (lowerVoice.contains("male")) 10 else 0
 
             val audio = tts.generate(text, sid = sid, speed = speed)
             val samples    = audio.samples

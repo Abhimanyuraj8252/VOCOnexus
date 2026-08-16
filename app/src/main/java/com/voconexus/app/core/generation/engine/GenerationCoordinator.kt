@@ -78,7 +78,24 @@ class GenerationCoordinator(
         try {
             // Load engine model session with proper path
             val model = ttsRepository.getModelById(job.modelId)
-            val modelPath = model?.installedPath ?: ""
+            var modelPath = model?.installedPath ?: ""
+            if (modelPath.isBlank() || !File(modelPath).exists() || File(modelPath).listFiles()?.none { it.name.endsWith(".onnx") } == true) {
+                val mId = job.modelId.ifBlank { "kokoro-v1.0" }
+                val candidates = listOf(
+                    File(context.filesDir, "models/installed/$mId"),
+                    File(context.filesDir, "models/installed/kokoro-v1.0"),
+                    File(context.filesDir, "models/$mId"),
+                    File(context.filesDir, "models/kokoro-v1.0"),
+                    File(context.filesDir, "models"),
+                    context.filesDir
+                )
+                val foundOnnx = candidates.firstNotNullOfOrNull { dir ->
+                    if (dir.exists()) dir.walkTopDown().firstOrNull { f -> f.name.endsWith(".onnx") } else null
+                }
+                if (foundOnnx != null) {
+                    modelPath = foundOnnx.parentFile?.absolutePath ?: foundOnnx.absolutePath
+                }
+            }
             engine.loadModel(job.modelId, modelPath)
 
             var completedInThisRun = 0
@@ -141,7 +158,8 @@ class GenerationCoordinator(
                     } ?: 24000
 
                     val settings = SynthesisSettings(speed = job.speed, pitch = job.pitch, sampleRate = targetSampleRate)
-                    val synthesizedAudio = engine.synthesize(chunk.normalizedText, job.voiceId, settings)
+                    val targetVoice = chunk.voiceId.ifBlank { job.voiceId }
+                    val synthesizedAudio = engine.synthesize(chunk.normalizedText, targetVoice, settings)
 
                     if (synthesizedAudio.encoding == com.voconexus.app.core.tts.AudioEncoding.MP3) {
                         tempFile.writeBytes(synthesizedAudio.pcmData)

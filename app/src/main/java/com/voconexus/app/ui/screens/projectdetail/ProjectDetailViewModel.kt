@@ -112,13 +112,25 @@ class ProjectDetailViewModel(
                 val speed = proj?.speed ?: 1.0f
                 val pitch = proj?.pitch ?: 0.0f
                 val firstChunk = chunksState.value.firstOrNull()
-                val targetVoiceId = firstChunk?.voiceId?.ifBlank { null } ?: "hi-IN-SwaraNeural"
-                val targetEngineId = firstChunk?.engineId?.ifBlank { null } ?: (userPrefsManager?.preferences?.value?.defaultEngineId ?: "edge-tts")
+                val targetVoiceId = firstChunk?.voiceId?.ifBlank { null } ?: "hf_alpha"
+
+                val isKokoroVoice = targetVoiceId.startsWith("hf_") || targetVoiceId.startsWith("hm_") ||
+                    targetVoiceId.startsWith("af_") || targetVoiceId.startsWith("am_") ||
+                    targetVoiceId.startsWith("bf_") || targetVoiceId.startsWith("bm_") ||
+                    targetVoiceId.startsWith("ff_") || targetVoiceId.startsWith("ef_") ||
+                    targetVoiceId.startsWith("em_") || targetVoiceId.startsWith("if_") ||
+                    targetVoiceId.startsWith("jf_") || targetVoiceId.startsWith("zf_") || targetVoiceId.startsWith("zm_") ||
+                    targetVoiceId.contains("alpha", ignoreCase = true) || targetVoiceId.contains("beta", ignoreCase = true) ||
+                    targetVoiceId.contains("omega", ignoreCase = true) || targetVoiceId.contains("psi", ignoreCase = true)
+
+                val targetEngineId = if (isKokoroVoice) "kokoro-v1.0" else (firstChunk?.engineId?.ifBlank { null } ?: (userPrefsManager?.preferences?.value?.defaultEngineId ?: "edge-tts"))
+                val targetModelId = if (isKokoroVoice) "kokoro-v1.0" else "edge-tts"
 
                 generationRepository.createAndStartJob(
                     projectId = projectId,
                     documentId = documentId,
                     engineId = targetEngineId,
+                    modelId = targetModelId,
                     voiceId = targetVoiceId,
                     speed = speed,
                     pitch = pitch,

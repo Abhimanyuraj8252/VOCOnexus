@@ -131,13 +131,34 @@ class EdgeTtsEngine(private val context: Context) : TtsEngine {
         return dateFormat.format(Date())
     }
 
+    private fun getFallbackVoiceId(voiceId: String): String {
+        return when (voiceId) {
+            "en-IN-AaravNeural", "en-IN-RehaanNeural" -> "en-IN-PrabhatNeural"
+            "en-IN-AnanyaNeural" -> "en-IN-NeerjaNeural"
+            else -> if (voiceId.startsWith("hi-IN")) "hi-IN-SwaraNeural" else "en-IN-NeerjaNeural"
+        }
+    }
+
     override suspend fun synthesize(
         text: String,
         voiceId: String,
         settings: SynthesisSettings
     ): SynthesizedAudio = withContext(Dispatchers.IO) {
         try {
-            val audioBytes = fetchEdgeTtsAudio(text, voiceId, settings.speed)
+            var audioBytes = try {
+                fetchEdgeTtsAudio(text, voiceId, settings.speed)
+            } catch (e: Exception) {
+                val fallbackVoice = getFallbackVoiceId(voiceId)
+                if (fallbackVoice != voiceId) {
+                    fetchEdgeTtsAudio(text, fallbackVoice, settings.speed)
+                } else throw e
+            }
+
+            if (audioBytes.isEmpty()) {
+                val fallbackVoice = getFallbackVoiceId(voiceId)
+                audioBytes = fetchEdgeTtsAudio(text, fallbackVoice, settings.speed)
+            }
+
             if (audioBytes.isNotEmpty()) {
                 return@withContext SynthesizedAudio(
                     sampleRate = 24000,
@@ -147,10 +168,17 @@ class EdgeTtsEngine(private val context: Context) : TtsEngine {
                     pcmData = audioBytes
                 )
             }
+
+            val fallback = synthesizer.synthesizeText(text, voiceId, settings)
+            if (fallback != null) return@withContext fallback
             throw com.voconexus.app.core.tts.TtsEngineException.NativeRuntimeTtsException("Edge TTS returned empty audio")
         } catch (e: Exception) {
-            android.util.Log.e("EdgeTtsEngine", "WebSocket Error or Synthesis Failed", e)
-            throw com.voconexus.app.core.tts.TtsEngineException.NativeRuntimeTtsException("Edge TTS API failed: ${e.message}", e)
+            android.util.Log.e("EdgeTtsEngine", "WebSocket Error or Synthesis Failed for $voiceId, falling back to Android TTS", e)
+            try {
+                val fallback = synthesizer.synthesizeText(text, voiceId, settings)
+                if (fallback != null) return@withContext fallback
+            } catch (_: Exception) {}
+            throw com.voconexus.app.core.tts.TtsEngineException.NativeRuntimeTtsException("Edge TTS API & Fallback failed: ${e.message}", e)
         }
     }
 
@@ -170,6 +198,11 @@ class EdgeTtsEngine(private val context: Context) : TtsEngine {
 
         var isDone = false
         val audioBuffer = java.io.ByteArrayOutputStream()
+
+        val lang = if (voiceId.contains("-")) {
+            val parts = voiceId.split("-")
+            if (parts.size >= 2) "${parts[0]}-${parts[1]}" else "en-US"
+        } else "en-US"
 
         client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -192,7 +225,7 @@ class EdgeTtsEngine(private val context: Context) : TtsEngine {
                             "Content-Type:application/ssml+xml\r\n" +
                             "X-Timestamp:${getTimestamp()}\r\n" +
                             "Path:ssml\r\n\r\n" +
-                            "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>" +
+                            "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='$lang'>" +
                             "<voice name='$voiceId'><prosody pitch='+0Hz' rate='$rate' volume='+0%'>" +
                             "$safeText</prosody></voice></speak>"
                     

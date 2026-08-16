@@ -67,17 +67,26 @@ class SpeechPreviewManager(
                     android.util.Log.i("SpeechPreview", "  Voice: ${voice?.name}, Model: ${model?.name}, installedPath: ${model?.installedPath}")
 
                     // Cloud engines (Edge TTS, Google Cloud) don't need local model files
-                    val isCloudEngine = engineId == "edge-tts" || engineId == "google-cloud-tts"
-                    val installedPath = model?.installedPath ?: ""
+                    val isCloudEngine = engineId.contains("edge") || engineId.contains("google")
+                    var installedPath = model?.installedPath ?: ""
 
                     if (!isCloudEngine && installedPath.isBlank()) {
-                        android.util.Log.w("SpeechPreview", "  Offline engine '$engineId' has no installed model path — skipping loadModel")
+                        val modelId = model?.id ?: "kokoro-v1.0"
+                        val candidateDirs = listOf(
+                            File(context.filesDir, "models/installed/$modelId"),
+                            File(context.filesDir, "models/$modelId"),
+                            File(context.filesDir, "models"),
+                            File(context.filesDir, "kokoro-v1.0")
+                        )
+                        candidateDirs.firstOrNull { it.exists() && (it.listFiles()?.any { f -> f.name.endsWith(".onnx") } == true) }?.let {
+                            installedPath = it.absolutePath
+                        }
                     }
 
                     // Only call loadModel() if path changed (model stays alive between previews)
                     if (loadedModelPath != installedPath || loadedEngineId != engineId) {
                         if (isCloudEngine || installedPath.isNotBlank()) {
-                            engine.loadModel(model?.id ?: "", installedPath)
+                            engine.loadModel(model?.id ?: "kokoro-v1.0", installedPath)
                             loadedModelPath = installedPath
                             loadedEngineId  = engineId
                         }

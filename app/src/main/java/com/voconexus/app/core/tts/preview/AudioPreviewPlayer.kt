@@ -29,6 +29,27 @@ class AudioPreviewPlayer(private val context: Context) {
     private val _activeVoiceId = MutableStateFlow<String?>(null)
     val activeVoiceId: StateFlow<String?> = _activeVoiceId.asStateFlow()
 
+    private val _currentPositionMs = MutableStateFlow(0L)
+    val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
+
+    private val _durationMs = MutableStateFlow(0L)
+    val durationMs: StateFlow<Long> = _durationMs.asStateFlow()
+
+    private val updateProgressRunnable = object : Runnable {
+        override fun run() {
+            exoPlayer?.let { player ->
+                if (player.isPlaying) {
+                    _currentPositionMs.value = player.currentPosition.coerceAtLeast(0L)
+                    val dur = player.duration
+                    if (dur > 0L) {
+                        _durationMs.value = dur
+                    }
+                    mainHandler.postDelayed(this, 100L)
+                }
+            }
+        }
+    }
+
     init {
         mainHandler.post {
             initializePlayer()
@@ -41,8 +62,14 @@ class AudioPreviewPlayer(private val context: Context) {
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(playing: Boolean) {
                     _isPlaying.value = playing
-                    if (!playing && playbackState == Player.STATE_ENDED) {
-                        _activeVoiceId.value = null
+                    if (playing) {
+                        mainHandler.post(updateProgressRunnable)
+                    } else {
+                        mainHandler.removeCallbacks(updateProgressRunnable)
+                        if (playbackState == Player.STATE_ENDED) {
+                            _activeVoiceId.value = null
+                            _currentPositionMs.value = 0L
+                        }
                     }
                 }
 
@@ -50,6 +77,7 @@ class AudioPreviewPlayer(private val context: Context) {
                     if (playbackState == Player.STATE_ENDED) {
                         _isPlaying.value = false
                         _activeVoiceId.value = null
+                        _currentPositionMs.value = 0L
                     }
                 }
             })
@@ -62,6 +90,8 @@ class AudioPreviewPlayer(private val context: Context) {
     fun playPreview(voiceId: String, audioFile: File, pitch: Float = 1.0f) {
         mainHandler.post {
             _activeVoiceId.value = voiceId
+            _currentPositionMs.value = 0L
+            _durationMs.value = 0L
             
             if (exoPlayer == null) {
                 initializePlayer()
@@ -75,6 +105,13 @@ class AudioPreviewPlayer(private val context: Context) {
                 prepare()
                 playWhenReady = true
             }
+        }
+    }
+
+    fun seekTo(positionMs: Long) {
+        mainHandler.post {
+            exoPlayer?.seekTo(positionMs.coerceAtLeast(0L))
+            _currentPositionMs.value = positionMs.coerceAtLeast(0L)
         }
     }
 
@@ -106,6 +143,7 @@ class AudioPreviewPlayer(private val context: Context) {
             } catch (_: Exception) {}
             _isPlaying.value = false
             _activeVoiceId.value = null
+            _currentPositionMs.value = 0L
         }
     }
 
@@ -114,6 +152,7 @@ class AudioPreviewPlayer(private val context: Context) {
      */
     fun release() {
         mainHandler.post {
+            mainHandler.removeCallbacks(updateProgressRunnable)
             try {
                 exoPlayer?.stop()
                 exoPlayer?.release()
