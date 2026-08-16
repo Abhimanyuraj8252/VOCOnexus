@@ -1,0 +1,17 @@
+# Build outputs
+build/
+.gradle/
+.gradle-home/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local
+local.properties
+
+# OS
+.DS_Store
+Thumbs.db
