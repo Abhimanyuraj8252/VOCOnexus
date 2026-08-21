@@ -73,6 +73,7 @@ class ScriptPlannerEngine(
         // 3. Part Construction
         val parts = partBuilder.buildParts(
             plannedChunks = plannedChunks,
+            targetPartCharCount = config.targetPartCharCount,
             targetPartDurationMs = config.targetPartDurationMs
         )
 

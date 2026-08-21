@@ -26,8 +26,8 @@ class AudioValidator {
         }
 
         val fileSize = file.length()
-        if (fileSize <= 100) {
-            return AudioValidationResult(isValid = false, errorMessage = "Audio file is empty or truncated (size <= 100 bytes)")
+        if (fileSize <= 500) {
+            return AudioValidationResult(isValid = false, errorMessage = "Audio file is empty or truncated (size <= 500 bytes)")
         }
 
         return try {
@@ -41,31 +41,38 @@ class AudioValidator {
                     if (riffMarker == "RIFF" && waveMarker == "WAVE") {
                         val buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
                         val channels = buffer.getShort(22).toInt().coerceAtLeast(1)
-                        val sampleRate = buffer.getInt(24).coerceAtLeast(16000)
+                        val sampleRate = buffer.getInt(24).coerceAtLeast(8000)
                         val durationMs = ((fileSize - 44) * 1000L) / (sampleRate * channels * 2)
+                        
+                        if (durationMs < 100L) {
+                            return AudioValidationResult(isValid = false, errorMessage = "Audio file duration is too short (< 100ms)")
+                        }
+                        
                         return AudioValidationResult(
                             isValid = true,
                             sampleRate = sampleRate,
                             channels = channels,
-                            durationMs = durationMs.coerceAtLeast(1000L),
+                            durationMs = durationMs,
                             fileSizeBytes = fileSize
                         )
                     }
                 }
 
                 // If non-WAV / MP3 audio stream with valid audio content
-                if (fileSize > 200) {
+                if (fileSize > 1000) {
                     val approxDurationMs = (fileSize * 8 * 1000L) / 48000L
-                    return AudioValidationResult(
-                        isValid = true,
-                        sampleRate = expectedSampleRate,
-                        channels = 1,
-                        durationMs = approxDurationMs.coerceAtLeast(1000L),
-                        fileSizeBytes = fileSize
-                    )
+                    if (approxDurationMs >= 100L) {
+                        return AudioValidationResult(
+                            isValid = true,
+                            sampleRate = expectedSampleRate,
+                            channels = 1,
+                            durationMs = approxDurationMs,
+                            fileSizeBytes = fileSize
+                        )
+                    }
                 }
 
-                AudioValidationResult(isValid = false, errorMessage = "Unsupported audio file header")
+                AudioValidationResult(isValid = false, errorMessage = "Unsupported audio file header or empty audio stream")
             }
         } catch (e: Exception) {
             AudioValidationResult(isValid = false, errorMessage = "Validation Exception: ${e.message}")

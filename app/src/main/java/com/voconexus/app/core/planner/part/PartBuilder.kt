@@ -15,7 +15,8 @@ class PartBuilder {
 
     fun buildParts(
         plannedChunks: List<PlannedChunk>,
-        targetPartDurationMs: Long = 600000L // Default ~10 minutes
+        targetPartCharCount: Int = 1000,
+        targetPartDurationMs: Long = 60000L
     ): List<PlannedPart> {
         if (plannedChunks.isEmpty()) return emptyList()
 
@@ -24,6 +25,7 @@ class PartBuilder {
 
         var currentPartChunks = mutableListOf<PlannedChunk>()
         var currentPartDurationMs = 0L
+        var currentPartCharCount = 0
 
         fun finalizeCurrentPart() {
             if (currentPartChunks.isEmpty()) return
@@ -48,15 +50,20 @@ class PartBuilder {
 
             currentPartChunks = mutableListOf()
             currentPartDurationMs = 0L
+            currentPartCharCount = 0
         }
 
         for (chunk in plannedChunks) {
-            // If adding chunk exceeds target duration AND current part is non-empty, finalize
-            if (currentPartDurationMs + chunk.estimatedDurationMs > targetPartDurationMs && currentPartChunks.isNotEmpty()) {
+            val chunkCharCount = chunk.sourceText.length
+            val potentialCharCount = currentPartCharCount + chunkCharCount
+
+            // Finalize current part if adding next chunk would push current non-empty part past target (~1000 chars)
+            if (currentPartChunks.isNotEmpty() && (currentPartCharCount >= targetPartCharCount || (currentPartCharCount >= 700 && potentialCharCount > targetPartCharCount))) {
                 finalizeCurrentPart()
             }
 
             currentPartChunks.add(chunk)
+            currentPartCharCount += chunkCharCount
             currentPartDurationMs += chunk.estimatedDurationMs
         }
 

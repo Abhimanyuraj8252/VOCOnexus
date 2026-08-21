@@ -105,8 +105,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -154,6 +156,10 @@ fun ScriptEditorScreen(
     val fontSizeSp by viewModel.fontSizeSp.collectAsState()
     val readingWpm by viewModel.readingWpm.collectAsState()
 
+    val parts by viewModel.parts.collectAsState()
+    val selectedPartIndex by viewModel.selectedPartIndex.collectAsState()
+    val viewMode by viewModel.viewMode.collectAsState()
+
     var showUnsavedDialog by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -162,6 +168,24 @@ fun ScriptEditorScreen(
     var showWpmMenu by remember { mutableStateOf(false) }
     var showGoalDialog by remember { mutableStateOf(false) }
     var showExtraTools by remember { mutableStateOf(false) }
+
+    // Full Script TextFieldValue
+    var textFieldValue by remember { mutableStateOf(TextFieldValue(scriptText)) }
+    LaunchedEffect(scriptText) {
+        if (textFieldValue.text != scriptText) {
+            textFieldValue = TextFieldValue(text = scriptText, selection = TextRange(scriptText.length))
+        }
+    }
+
+    // Selected Part TextFieldValue
+    val currentPart = parts.getOrNull(selectedPartIndex)
+    var partTextFieldValue by remember { mutableStateOf(TextFieldValue(currentPart?.text ?: "")) }
+    LaunchedEffect(selectedPartIndex, currentPart?.text) {
+        val targetText = currentPart?.text ?: ""
+        if (partTextFieldValue.text != targetText) {
+            partTextFieldValue = TextFieldValue(text = targetText, selection = TextRange(targetText.length))
+        }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -314,7 +338,11 @@ fun ScriptEditorScreen(
                                 if (isPlayingPreview) {
                                     container.audioPreviewPlayer.pause()
                                 } else {
-                                    val textToPlay = scriptText.take(1000)
+                                    val textToPlay = if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART && currentPart != null) {
+                                        currentPart.text
+                                    } else {
+                                        scriptText.take(1000)
+                                    }
                                     if (textToPlay.isNotBlank()) {
                                         kotlinx.coroutines.MainScope().launch {
                                             try {
@@ -382,7 +410,12 @@ fun ScriptEditorScreen(
                                     leadingIcon = { Icon(Icons.Default.AutoFixHigh, contentDescription = null) },
                                     onClick = {
                                         showMenu = false
-                                        viewModel.smartAutoFormat()
+                                        val sel = textFieldValue.selection
+                                        if (!sel.collapsed) {
+                                            viewModel.smartAutoFormat(sel.min, sel.max)
+                                        } else {
+                                            viewModel.smartAutoFormat()
+                                        }
                                     }
                                 )
                                 DropdownMenuItem(
@@ -390,7 +423,12 @@ fun ScriptEditorScreen(
                                     leadingIcon = { Icon(Icons.Default.CleaningServices, contentDescription = null) },
                                     onClick = {
                                         showMenu = false
-                                        viewModel.removeBracketCues()
+                                        val sel = textFieldValue.selection
+                                        if (!sel.collapsed) {
+                                            viewModel.removeBracketCues(sel.min, sel.max)
+                                        } else {
+                                            viewModel.removeBracketCues()
+                                        }
                                     }
                                 )
                                 DropdownMenuItem(
@@ -564,10 +602,13 @@ fun ScriptEditorScreen(
                                     expanded = showCaseMenu,
                                     onDismissRequest = { showCaseMenu = false }
                                 ) {
-                                    DropdownMenuItem(text = { Text("UPPERCASE") }, onClick = { showCaseMenu = false; viewModel.convertCase(TextCaseMode.UPPERCASE) })
-                                    DropdownMenuItem(text = { Text("lowercase") }, onClick = { showCaseMenu = false; viewModel.convertCase(TextCaseMode.LOWERCASE) })
-                                    DropdownMenuItem(text = { Text("Title Case") }, onClick = { showCaseMenu = false; viewModel.convertCase(TextCaseMode.TITLE_CASE) })
-                                    DropdownMenuItem(text = { Text("Sentence case") }, onClick = { showCaseMenu = false; viewModel.convertCase(TextCaseMode.SENTENCE_CASE) })
+                                    val selForCase = textFieldValue.selection
+                                    val s = if (!selForCase.collapsed) selForCase.min else -1
+                                    val e = if (!selForCase.collapsed) selForCase.max else -1
+                                    DropdownMenuItem(text = { Text("UPPERCASE") }, onClick = { showCaseMenu = false; viewModel.convertCase(TextCaseMode.UPPERCASE, s, e) })
+                                    DropdownMenuItem(text = { Text("lowercase") }, onClick = { showCaseMenu = false; viewModel.convertCase(TextCaseMode.LOWERCASE, s, e) })
+                                    DropdownMenuItem(text = { Text("Title Case") }, onClick = { showCaseMenu = false; viewModel.convertCase(TextCaseMode.TITLE_CASE, s, e) })
+                                    DropdownMenuItem(text = { Text("Sentence case") }, onClick = { showCaseMenu = false; viewModel.convertCase(TextCaseMode.SENTENCE_CASE, s, e) })
                                 }
                             }
                         }
@@ -625,24 +666,42 @@ fun ScriptEditorScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Surface(
-                                color = Color(0xFF6366F1),
-                                shape = RoundedCornerShape(8.dp)
+                                color = if (viewMode == ScriptEditorViewModel.EditorViewMode.FULL_SCRIPT) Color(0xFF6366F1) else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.clickable { viewModel.setViewMode(ScriptEditorViewModel.EditorViewMode.FULL_SCRIPT) }
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)) {
-                                    Surface(color = Color(0xFF10B981), shape = CircleShape, modifier = Modifier.size(6.dp)) {}
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⚡ FUTURISTIC CANVAS", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.ExtraBold)
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                    Surface(color = if (viewMode == ScriptEditorViewModel.EditorViewMode.FULL_SCRIPT) Color(0xFF10B981) else Color.Gray, shape = CircleShape, modifier = Modifier.size(6.dp)) {}
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("⚡ FULL SCRIPT", style = MaterialTheme.typography.labelSmall, color = if (viewMode == ScriptEditorViewModel.EditorViewMode.FULL_SCRIPT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+
+                            Surface(
+                                color = if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART) Color(0xFF06B6D4) else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.clickable { viewModel.setViewMode(ScriptEditorViewModel.EditorViewMode.PART_BY_PART) }
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                    Surface(color = if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART) Color(0xFF10B981) else Color.Gray, shape = CircleShape, modifier = Modifier.size(6.dp)) {}
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("🧩 PARTS (${parts.size})", style = MaterialTheme.typography.labelSmall, color = if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
                         }
+
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "${textStats.wordCount} words • ${Formatters.formatDurationMs(textStats.estimatedDurationMs)}",
+                                text = if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART && currentPart != null) {
+                                    "Part ${selectedPartIndex + 1}/${parts.size} • ${currentPart.characterCount} chars"
+                                } else {
+                                    "${textStats.wordCount} words • ${Formatters.formatDurationMs(textStats.estimatedDurationMs)}"
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -651,32 +710,122 @@ fun ScriptEditorScreen(
                         }
                     }
 
+                    // Part Navigation Strip (Visible in Part View)
+                    if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART && parts.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { viewModel.selectPreviousPart() },
+                                    enabled = selectedPartIndex > 0,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.ChevronLeft, contentDescription = "Prev Part", modifier = Modifier.size(18.dp))
+                                }
+                                Text(
+                                    text = "Part ${selectedPartIndex + 1} of ${parts.size}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                IconButton(
+                                    onClick = { viewModel.selectNextPart() },
+                                    enabled = selectedPartIndex < parts.size - 1,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.ChevronRight, contentDescription = "Next Part", modifier = Modifier.size(18.dp))
+                                }
+                            }
+
+                            LazyRow(
+                                modifier = Modifier.weight(1f).padding(start = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(parts.size) { index ->
+                                    val part = parts[index]
+                                    val isSelected = index == selectedPartIndex
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                        ),
+                                        modifier = Modifier.clickable { viewModel.setSelectedPartIndex(index) }
+                                    ) {
+                                        Text(
+                                            text = "P${index + 1} (${part.characterCount}c)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = androidx.compose.ui.unit.TextUnit.Unspecified,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
                     Spacer(modifier = Modifier.height(8.dp))
 
                     val editorScrollState = rememberScrollState()
 
-                    // Full-Width Immersive Script Text Input Box
+                    // Text Input Box (Switches value based on viewMode)
                     Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                        BasicTextField(
-                            value = scriptText,
-                            onValueChange = { viewModel.onScriptTextChanged(it) },
-                            textStyle = TextStyle(
-                                fontSize = fontSizeSp.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = (fontSizeSp * 1.5f).sp,
-                                fontFamily = FontFamily.Default
-                            ),
-                            cursorBrush = SolidColor(Color(0xFF06B6D4)), // Electric Cyan Glowing Cursor
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(editorScrollState)
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
+                        if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART) {
+                            BasicTextField(
+                                value = partTextFieldValue,
+                                onValueChange = { newValue ->
+                                    partTextFieldValue = newValue
+                                    if (currentPart != null && newValue.text != currentPart.text) {
+                                        viewModel.updateCurrentPartText(newValue.text)
+                                    }
+                                },
+                                textStyle = TextStyle(
+                                    fontSize = fontSizeSp.sp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    lineHeight = (fontSizeSp * 1.5f).sp,
+                                    fontFamily = FontFamily.Default
+                                ),
+                                cursorBrush = SolidColor(Color(0xFF06B6D4)),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(editorScrollState)
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        } else {
+                            BasicTextField(
+                                value = textFieldValue,
+                                onValueChange = { newValue ->
+                                    textFieldValue = newValue
+                                    if (newValue.text != scriptText) {
+                                        viewModel.onScriptTextChanged(newValue.text)
+                                    }
+                                },
+                                textStyle = TextStyle(
+                                    fontSize = fontSizeSp.sp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    lineHeight = (fontSizeSp * 1.5f).sp,
+                                    fontFamily = FontFamily.Default
+                                ),
+                                cursorBrush = SolidColor(Color(0xFF06B6D4)),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(editorScrollState)
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
 
-                        if (scriptText.isEmpty()) {
+                        val activeText = if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART) partTextFieldValue.text else textFieldValue.text
+                        if (activeText.isEmpty()) {
                             Text(
-                                text = "Type or paste your voiceover script text here...",
+                                text = if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART) "Type or paste part text here..." else "Type or paste your voiceover script text here...",
                                 style = TextStyle(
                                     fontSize = fontSizeSp.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -713,7 +862,11 @@ fun ScriptEditorScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Lines: ${textStats.lineCount} • Chars: ${Formatters.formatNumber(scriptText.length.toLong())} • Words: ${textStats.wordCount}",
+                            text = if (viewMode == ScriptEditorViewModel.EditorViewMode.PART_BY_PART && currentPart != null) {
+                                "Part ${selectedPartIndex + 1} • Chars: ${currentPart.characterCount} • Target: ~1000 chars"
+                            } else {
+                                "Lines: ${textStats.lineCount} • Chars: ${Formatters.formatNumber(scriptText.length.toLong())} • Words: ${textStats.wordCount}"
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium

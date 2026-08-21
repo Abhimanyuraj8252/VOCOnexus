@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.UUID
+import java.io.File
 
 interface GenerationRepository {
     fun getLatestJobFlow(projectId: String): Flow<GenerationJob?>
@@ -83,36 +84,20 @@ class GenerationRepositoryImpl(
             jobDao.updateJobStatus(activeJob.id, GenerationJobStatus.CANCELLED, null)
         }
 
-        val chunks = chunkDao.getChunksForProject(projectId)
-        if (chunks.isEmpty()) {
+        val allChunks = chunkDao.getChunksForProject(projectId)
+        if (allChunks.isEmpty()) {
             throw IllegalArgumentException("No chunks found in project to generate")
         }
 
         // Apply subset selection if provided
-        val isSubset = selectedChunkIds.isNotEmpty() || selectedPartIds.isNotEmpty()
-        var queuedCount = 0
-        if (isSubset) {
-            // First mark all chunks as PENDING
-            chunks.forEach { 
-                if (it.status == ChunkStatus.QUEUED || it.status == ChunkStatus.FAILED) {
-                    chunkDao.updateChunkStatus(it.id, ChunkStatus.PENDING, System.currentTimeMillis())
-                }
-            }
-            // Then set the selected ones to QUEUED
-            if (selectedChunkIds.isNotEmpty()) {
-                chunkDao.setChunksQueued(selectedChunkIds)
-                queuedCount += selectedChunkIds.size
-            }
-            if (selectedPartIds.isNotEmpty()) {
-                chunkDao.setPartsQueued(selectedPartIds)
-                queuedCount += chunks.count { it.partId in selectedPartIds && it.id !in selectedChunkIds }
-            }
-        } else {
-             // Force queue all chunks in project
-             chunks.forEach {
-                 chunkDao.updateChunkStatus(it.id, ChunkStatus.QUEUED, System.currentTimeMillis())
-                 queuedCount++
-             }
+        val targetChunks = when {
+            selectedChunkIds.isNotEmpty() -> allChunks.filter { it.id in selectedChunkIds }
+            selectedPartIds.isNotEmpty() -> allChunks.filter { it.partId in selectedPartIds }
+            else -> allChunks
+        }
+
+        if (targetChunks.isEmpty()) {
+            throw IllegalArgumentException("No target chunks found for generation")
         }
 
         val fingerprint = GenerationFingerprint.computeChunkFingerprint(
@@ -124,16 +109,42 @@ class GenerationRepositoryImpl(
             pitch = pitch
         )
 
+        var completedCount = 0
+        val toQueueIds = mutableListOf<String>()
+
+        targetChunks.forEach { chunk ->
+            val isCompleted = chunk.status == ChunkStatus.COMPLETED &&
+                    !chunk.audioPath.isNullOrBlank() &&
+                    File(chunk.audioPath).exists() &&
+                    File(chunk.audioPath).length() > 44
+
+            if (isCompleted && chunk.generationFingerprint == fingerprint) {
+                completedCount++
+            } else {
+                toQueueIds.add(chunk.id)
+            }
+        }
+
+        if (toQueueIds.isNotEmpty()) {
+            chunkDao.setChunksQueued(toQueueIds)
+        }
+
+        val totalTarget = targetChunks.size
+        val isAllCompleted = (completedCount == totalTarget)
+
+        val initialStatus = if (isAllCompleted) GenerationJobStatus.COMPLETED else GenerationJobStatus.QUEUED
+
         val newJob = GenerationJobEntity(
             id = UUID.randomUUID().toString(),
             projectId = projectId,
             documentId = documentId,
             jobType = jobType.name,
-            status = GenerationJobStatus.QUEUED,
-            totalChunks = queuedCount,
-            completedChunks = 0,
+            status = initialStatus,
+            totalChunks = totalTarget,
+            completedChunks = completedCount,
             failedChunks = 0,
             startedAt = System.currentTimeMillis(),
+            endedAt = if (isAllCompleted) System.currentTimeMillis() else null,
             generationFingerprint = fingerprint,
             engineId = engineId,
             modelId = modelId,
@@ -143,7 +154,9 @@ class GenerationRepositoryImpl(
         )
 
         jobDao.insertJob(newJob)
-        TtsGenerationService.startService(context, newJob.id)
+        if (!isAllCompleted) {
+            TtsGenerationService.startService(context, newJob.id)
+        }
 
         return@withContext newJob.toDomainJob()
     }

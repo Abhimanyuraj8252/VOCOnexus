@@ -169,6 +169,19 @@ class GenerationCoordinator(
                         audioSink.flushAndClose()
                     }
 
+                    // Check for cancellation/stop requested mid-synthesis
+                    if (!_isGenerating.value) {
+                        if (tempFile.exists()) tempFile.delete()
+                        break
+                    }
+                    val jobCheckState = jobDao.getJobById(jobId)?.status
+                    if (jobCheckState == GenerationJobStatus.STOP_REQUESTED ||
+                        jobCheckState == GenerationJobStatus.CANCEL_REQUESTED ||
+                        jobCheckState == GenerationJobStatus.PAUSE_REQUESTED) {
+                        if (tempFile.exists()) tempFile.delete()
+                        break
+                    }
+
                     // Validate generated temporary audio
                     val valResult = audioValidator.validateWavFile(tempFile)
                     if (!valResult.isValid) {

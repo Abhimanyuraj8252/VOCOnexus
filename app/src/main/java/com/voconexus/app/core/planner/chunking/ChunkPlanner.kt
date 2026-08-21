@@ -78,10 +78,11 @@ class ChunkPlanner(
                 continue
             }
 
-            // Case B: Paragraph boundary check
+            // Case B: Paragraph boundary check (only break if current batch has sufficient length)
             val isNewParagraph = currentBatch.isNotEmpty() &&
                     profile.preserveParagraphs &&
-                    sentence.paragraphIndex != currentBatch.last().paragraphIndex
+                    sentence.paragraphIndex != currentBatch.last().paragraphIndex &&
+                    currentBatchTokens >= 30
 
             if (isNewParagraph) {
                 finalizeCurrentBatch()

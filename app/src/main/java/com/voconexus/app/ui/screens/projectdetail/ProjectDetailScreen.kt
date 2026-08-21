@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+
 package com.voconexus.app.ui.screens.projectdetail
 
 import com.voconexus.app.core.generation.GenerationJob
@@ -5,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,8 +47,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import com.voconexus.app.core.data.db.GenerationJobStatus
 import java.io.File
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -53,6 +60,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
@@ -138,12 +147,18 @@ fun ProjectDetailScreen(
                     divider = {},
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    // Count Parts that have at least 1 generated audio chunk
+                    val generatedPartsCount = remember(chunks, parts) {
+                        parts.count { part ->
+                            chunks.any { it.partId == part.id && !it.audioPath.isNullOrBlank() && java.io.File(it.audioPath!!).exists() }
+                        }
+                    }
                     val tabs = listOf(
-                        "Overview", 
-                        "Parts (${parts.size})", 
-                        "Chunks (${chunks.size})", 
-                        "Controls", 
-                        "Audio (${audioAssets.size})"
+                        "Overview",
+                        "Parts (${parts.size})",
+                        "Chunks (${chunks.size})",
+                        "Controls",
+                        if (generatedPartsCount > 0) "Audio ($generatedPartsCount)" else "Audio"
                     )
                     
                     tabs.forEachIndexed { index, title ->
@@ -182,7 +197,7 @@ fun ProjectDetailScreen(
                     1 -> PartsTabContent(parts = parts, chunks = chunks, job = job, viewModel = viewModel, currentVoiceId = chunks.firstOrNull()?.voiceId ?: "af_heart", engineId = (viewModel.defaultEngineIdState.collectAsState().value))
                     2 -> ChunksTabContent(chunks = chunks, job = job, viewModel = viewModel, engineId = (viewModel.defaultEngineIdState.collectAsState().value))
                     3 -> SpeechControlsTabContent(projectId = viewModel.projectId, currentVoiceId = chunks.firstOrNull()?.voiceId ?: "af_heart")
-                    4 -> GeneratedAudioTabContent(projectTitle = project!!.title, parts = parts, chunks = chunks, audioAssets = audioAssets, viewModel = viewModel)
+                    4 -> GeneratedAudioTabContent(projectTitle = project!!.title, parts = parts, chunks = chunks, audioAssets = audioAssets, job = job, viewModel = viewModel)
                 }
             }
         }
@@ -805,6 +820,71 @@ fun OverviewTabContent(
 }
 
 @Composable
+fun ActiveJobProgressCard(
+    job: GenerationJob?,
+    onStopJob: () -> Unit
+) {
+    if (job == null) return
+    val isJobActive = job.status == GenerationJobStatus.RUNNING ||
+            job.status == GenerationJobStatus.QUEUED ||
+            job.status == GenerationJobStatus.STARTING
+
+    val isStopping = job.status == GenerationJobStatus.STOP_REQUESTED
+
+    if (isJobActive || isStopping) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isStopping) "Stopping Generation..." else "Generating: ${job.completedChunks} / ${job.totalChunks} Chunks",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "${(job.progressFraction * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    if (isJobActive) {
+                        FilledTonalButton(
+                            onClick = onStopJob,
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.Stop, contentDescription = "Stop", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Stop", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { job.progressFraction },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun PartsTabContent(
     parts: List<PartEntity>,
     chunks: List<ChunkEntity>,
@@ -825,40 +905,7 @@ fun PartsTabContent(
         }
     } else {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            if (job != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Generation Active: ${job.completedChunks} / ${job.totalChunks} Chunks",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "${(job.progressFraction * 100).toInt()}%",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = { job.progressFraction },
-                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
-                        )
-                    }
-                }
-            }
+            ActiveJobProgressCard(job = job, onStopJob = viewModel::stopJob)
 
             // Selection & Action Header Bar
             val isAllSelected = parts.isNotEmpty() && selectedPartIds.size == parts.size
@@ -1052,40 +1099,7 @@ fun ChunksTabContent(
         }
     } else {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            if (job != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Generation Active: ${job.completedChunks} / ${job.totalChunks} Chunks",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "${(job.progressFraction * 100).toInt()}%",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = { job.progressFraction },
-                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
-                        )
-                    }
-                }
-            }
+            ActiveJobProgressCard(job = job, onStopJob = viewModel::stopJob)
 
             // Selection & Action Header Bar
             val isAllSelected = chunks.isNotEmpty() && selectedChunkIds.size == chunks.size
@@ -1270,10 +1284,13 @@ fun GeneratedAudioTabContent(
     parts: List<PartEntity>,
     chunks: List<ChunkEntity>,
     audioAssets: List<com.voconexus.app.core.data.db.AudioAssetEntity>,
+    job: GenerationJob? = null,
     viewModel: ProjectDetailViewModel
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var isCombining by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var selectedExportFormat by remember { mutableStateOf("MP3") }
 
     val partAudioGroups = remember(chunks, parts) {
         val groups = mutableListOf<GeneratedPartAudioGroup>()
@@ -1314,7 +1331,133 @@ fun GeneratedAudioTabContent(
 
     var selectedGroupIds by remember { mutableStateOf(setOf<String>()) }
 
+    if (showExportDialog) {
+        val targetGroups = partAudioGroups.filter { selectedGroupIds.contains(it.id) || selectedGroupIds.isEmpty() }
+        val targetChunks = targetGroups.flatMap { it.chunks }
+        val totalDurationMs = targetChunks.sumOf { it.durationMs }
+        val totalDurationSec = totalDurationMs / 1000
+        val minutes = totalDurationSec / 60
+        val seconds = totalDurationSec % 60
+
+        val estimatedMp3SizeMb = String.format("%.1f", (totalDurationSec * 192.0 * 1000 / 8) / (1024 * 1024))
+        val estimatedWavSizeMb = String.format("%.1f", (totalDurationSec * 24000.0 * 2) / (1024 * 1024))
+
+        AlertDialog(
+            onDismissRequest = { if (!isCombining) showExportDialog = false },
+            title = {
+                Text("Export Project Audio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Combining ${targetChunks.size} audio chunks (${minutes}m ${seconds}s total duration). Select format:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Surface(
+                        onClick = { selectedExportFormat = "MP3" },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selectedExportFormat == "MP3") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, if (selectedExportFormat == "MP3") MaterialTheme.colorScheme.primary else Color.Transparent),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedExportFormat == "MP3",
+                                onClick = { selectedExportFormat = "MP3" }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    "MP3 (Compressed)",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (selectedExportFormat == "MP3") MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    "192kbps • Recommended (~$estimatedMp3SizeMb MB)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Surface(
+                        onClick = { selectedExportFormat = "WAV" },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selectedExportFormat == "WAV") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, if (selectedExportFormat == "WAV") MaterialTheme.colorScheme.primary else Color.Transparent),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedExportFormat == "WAV",
+                                onClick = { selectedExportFormat = "WAV" }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    "WAV (Lossless PCM)",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (selectedExportFormat == "WAV") MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    "Uncompressed audio (~$estimatedWavSizeMb MB)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExportDialog = false
+                        isCombining = true
+                        kotlinx.coroutines.MainScope().launch {
+                            try {
+                                val path = viewModel.combineAndExportAudio(
+                                    selectedChunks = targetChunks,
+                                    projectTitle = projectTitle,
+                                    exportFormat = selectedExportFormat,
+                                    context = context
+                                )
+                                android.widget.Toast.makeText(context, "Exported $selectedExportFormat to Music/VocoNexus folder!", android.widget.Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Export failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                            } finally {
+                                isCombining = false
+                            }
+                        }
+                    },
+                    enabled = !isCombining
+                ) {
+                    Text(if (isCombining) "Exporting..." else "Export")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showExportDialog = false },
+                    enabled = !isCombining
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        ActiveJobProgressCard(job = job, onStopJob = viewModel::stopJob)
         val isAllSelected = partAudioGroups.isNotEmpty() && selectedGroupIds.size == partAudioGroups.size
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
@@ -1348,14 +1491,7 @@ fun GeneratedAudioTabContent(
 
                 Button(
                     onClick = {
-                        isCombining = true
-                        kotlinx.coroutines.MainScope().launch {
-                            val targetGroups = partAudioGroups.filter { selectedGroupIds.contains(it.id) || selectedGroupIds.isEmpty() }
-                            val targetChunks = targetGroups.flatMap { it.chunks }
-                            val path = viewModel.combineAndExportAudio(targetChunks, projectTitle)
-                            isCombining = false
-                            android.widget.Toast.makeText(context, "Saved to Music/VocoNexus folder!", android.widget.Toast.LENGTH_LONG).show()
-                        }
+                        showExportDialog = true
                     },
                     enabled = !isCombining && (partAudioGroups.isNotEmpty() || audioAssets.isNotEmpty()),
                     shape = RoundedCornerShape(10.dp)
@@ -1424,14 +1560,29 @@ fun GeneratedAudioTabContent(
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
+                                        val badgeColor = when {
+                                            group.completedChunkCount == group.chunkCount && group.chunkCount > 0 -> MaterialTheme.colorScheme.primaryContainer
+                                            group.completedChunkCount > 0 -> MaterialTheme.colorScheme.tertiaryContainer
+                                            else -> MaterialTheme.colorScheme.surfaceVariant
+                                        }
+                                        val badgeTextColor = when {
+                                            group.completedChunkCount == group.chunkCount && group.chunkCount > 0 -> MaterialTheme.colorScheme.onPrimaryContainer
+                                            group.completedChunkCount > 0 -> MaterialTheme.colorScheme.onTertiaryContainer
+                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                        val badgeText = when {
+                                            group.completedChunkCount == group.chunkCount && group.chunkCount > 0 -> "READY"
+                                            group.completedChunkCount > 0 -> "${group.completedChunkCount}/${group.chunkCount} READY"
+                                            else -> "NOT GENERATED"
+                                        }
                                         Surface(
-                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            color = badgeColor,
                                             shape = RoundedCornerShape(6.dp)
                                         ) {
                                             Text(
-                                                text = "WAV PART",
+                                                text = badgeText,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                color = badgeTextColor,
                                                 fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
@@ -1449,15 +1600,41 @@ fun GeneratedAudioTabContent(
                             if (activeVoiceId == group.id) {
                                 val totalMs = if (playerDurationMs > 0L) playerDurationMs else group.totalDurationMs
                                 val currentMs = currentPositionMs.coerceIn(0L, totalMs.coerceAtLeast(1L))
+                                val activeChunkIdx by container.audioPreviewPlayer.activeChunkIndex.collectAsState()
+                                val totalChunks by container.audioPreviewPlayer.totalChunksCount.collectAsState()
 
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(Formatters.formatDurationMs(currentMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                        Text(Formatters.formatDurationMs(totalMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(
+                                            Formatters.formatDurationMs(currentMs),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (totalChunks > 1) {
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Chunk ${activeChunkIdx + 1}/$totalChunks",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            Formatters.formatDurationMs(totalMs),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                     Slider(
                                         value = currentMs.toFloat(),
@@ -1471,89 +1648,127 @@ fun GeneratedAudioTabContent(
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
-                            Row(
+                            FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                if (isThisGroupPlaying) {
+                                if (group.completedChunkCount < group.chunkCount) {
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        modifier = Modifier.clickable { container.audioPreviewPlayer.pause() }
-                                    ) {
-                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.Pause, contentDescription = "Pause", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Pause", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.errorContainer,
-                                        modifier = Modifier.clickable { container.audioPreviewPlayer.stop() }
-                                    ) {
-                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.Stop, contentDescription = "Stop", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Stop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                } else {
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
                                         modifier = Modifier.clickable {
-                                            if (activeVoiceId == group.id && !isPlayingPreview) {
-                                                container.audioPreviewPlayer.resume()
+                                            viewModel.startGeneration(selectedPartIds = listOf(group.id))
+                                            android.widget.Toast.makeText(context, "Generating audio for ${group.title}...", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    ) {
+                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Bolt, contentDescription = "Generate Audio", tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Generate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onTertiaryContainer, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                if (group.completedChunkCount > 0) {
+                                    if (isThisGroupPlaying) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            modifier = Modifier.clickable { container.audioPreviewPlayer.pause() }
+                                        ) {
+                                            Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.Pause, contentDescription = "Pause", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Pause", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = MaterialTheme.colorScheme.errorContainer,
+                                            modifier = Modifier.clickable { container.audioPreviewPlayer.stop() }
+                                        ) {
+                                            Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.Stop, contentDescription = "Stop", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Stop", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    } else {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            modifier = Modifier.clickable {
+                                                if (activeVoiceId == group.id && !isPlayingPreview) {
+                                                    // Resume paused playback for this group
+                                                    container.audioPreviewPlayer.resume()
+                                                } else {
+                                                    // Play ALL completed chunks gaplessly as a playlist
+                                                    val sortedFiles = group.chunks
+                                                        .sortedBy { it.sequenceIndex }
+                                                        .mapNotNull { chunk ->
+                                                            chunk.audioPath?.let { path ->
+                                                                val f = File(path)
+                                                                if (f.exists()) f else null
+                                                            }
+                                                        }
+                                                    if (sortedFiles.isNotEmpty()) {
+                                                        container.audioPreviewPlayer.playFiles(group.id, sortedFiles)
+                                                    }
+                                                }
+                                            }
+                                        ) {
+                                            Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = "Play Audio", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Play All", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        modifier = Modifier.clickable {
+                                            if (group.completedChunkCount < group.chunkCount) {
+                                                android.widget.Toast.makeText(context, "Part generation incomplete (${group.completedChunkCount}/${group.chunkCount} ready). Generate all chunks first.", android.widget.Toast.LENGTH_SHORT).show()
                                             } else {
-                                                val firstFile = group.chunks.firstOrNull()?.audioPath?.let { File(it) }
-                                                if (firstFile != null && firstFile.exists()) {
-                                                    container.audioPreviewPlayer.playPreview(group.id, firstFile)
+                                                kotlinx.coroutines.MainScope().launch {
+                                                    try {
+                                                        viewModel.combineAndExportAudio(
+                                                            selectedChunks = group.chunks,
+                                                            projectTitle = projectTitle,
+                                                            exportFormat = "MP3",
+                                                            context = context
+                                                        )
+                                                        android.widget.Toast.makeText(context, "Exported ${group.title} to Music/VocoNexus", android.widget.Toast.LENGTH_SHORT).show()
+                                                    } catch (e: Exception) {
+                                                        android.widget.Toast.makeText(context, "Export failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
                                                 }
                                             }
                                         }
                                     ) {
-                                        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.PlayArrow, contentDescription = "Play Audio", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
+                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Download, contentDescription = "Export", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Play Audio", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                                            Text("Export", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.Bold)
                                         }
                                     }
-                                }
 
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    modifier = Modifier.clickable {
-                                        kotlinx.coroutines.MainScope().launch {
-                                            viewModel.combineAndExportAudio(group.chunks, projectTitle)
-                                            android.widget.Toast.makeText(context, "Exported ${group.title} to Music/VocoNexus", android.widget.Toast.LENGTH_SHORT).show()
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        modifier = Modifier.clickable {
+                                            viewModel.deleteChunkAudios(group.chunks.map { it.id })
+                                            selectedGroupIds = selectedGroupIds - group.id
                                         }
-                                    }
-                                ) {
-                                    Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Download, contentDescription = "Export", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Export", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.errorContainer,
-                                    modifier = Modifier.clickable {
-                                        viewModel.deleteChunkAudios(group.chunks.map { it.id })
-                                        selectedGroupIds = selectedGroupIds - group.id
-                                    }
-                                ) {
-                                    Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Delete", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                    ) {
+                                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Delete", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }

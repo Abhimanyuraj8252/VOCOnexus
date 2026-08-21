@@ -28,6 +28,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+data class ScriptPart(
+    val index: Int,
+    val text: String,
+    val charCount: Int,
+    val wordCount: Int
+) {
+    val characterCount: Int get() = charCount
+}
+
 data class ImportPreviewState(
     val parseResult: ParseResult,
     val preprocessingResult: PreprocessingResult
@@ -48,6 +57,11 @@ class ScriptEditorViewModel(
     private val durationEstimator: DurationEstimator
 ) : ViewModel() {
 
+    enum class EditorViewMode {
+        FULL_SCRIPT,
+        PART_BY_PART
+    }
+
     val projectState: StateFlow<ProjectEntity?> = projectRepository.getProjectById(projectId)
         .stateIn(
             scope = viewModelScope,
@@ -57,6 +71,150 @@ class ScriptEditorViewModel(
 
     private val _scriptText = MutableStateFlow("")
     val scriptText: StateFlow<String> = _scriptText.asStateFlow()
+
+    // --- Feature 5: Sentence-Aware Part-by-Part Script Division System ---
+    private val _parts = MutableStateFlow<List<ScriptPart>>(emptyList())
+    val parts: StateFlow<List<ScriptPart>> = _parts.asStateFlow()
+
+    private val _selectedPartIndex = MutableStateFlow<Int>(-1) // -1 = Full Script, 0 = Part 1, 1 = Part 2...
+    val selectedPartIndex: StateFlow<Int> = _selectedPartIndex.asStateFlow()
+
+    private val _viewMode = MutableStateFlow<EditorViewMode>(EditorViewMode.FULL_SCRIPT)
+    val viewMode: StateFlow<EditorViewMode> = _viewMode.asStateFlow()
+
+    fun setViewMode(mode: EditorViewMode) {
+        _viewMode.value = mode
+        if (mode == EditorViewMode.PART_BY_PART) {
+            recalculateParts(_scriptText.value)
+            if (_selectedPartIndex.value == -1 && _parts.value.isNotEmpty()) {
+                _selectedPartIndex.value = 0
+            }
+        }
+    }
+
+    fun selectPart(index: Int) {
+        _selectedPartIndex.value = index.coerceIn(-1, (_parts.value.size - 1).coerceAtLeast(-1))
+    }
+
+    fun setSelectedPartIndex(index: Int) {
+        if (index in _parts.value.indices) {
+            _selectedPartIndex.value = index
+        }
+    }
+
+    fun nextPart() {
+        val maxIdx = _parts.value.size - 1
+        if (maxIdx >= 0) {
+            val current = _selectedPartIndex.value
+            if (current == -1) {
+                _selectedPartIndex.value = 0
+            } else if (current < maxIdx) {
+                _selectedPartIndex.value = current + 1
+            }
+        }
+    }
+
+    fun selectNextPart() {
+        val maxIdx = _parts.value.size - 1
+        if (maxIdx >= 0 && _selectedPartIndex.value < maxIdx) {
+            _selectedPartIndex.value = _selectedPartIndex.value + 1
+        }
+    }
+
+    fun prevPart() {
+        val current = _selectedPartIndex.value
+        if (current > 0) {
+            _selectedPartIndex.value = current - 1
+        } else if (current == 0) {
+            _selectedPartIndex.value = -1 // back to Full Script
+        }
+    }
+
+    fun selectPreviousPart() {
+        if (_selectedPartIndex.value > 0) {
+            _selectedPartIndex.value = _selectedPartIndex.value - 1
+        }
+    }
+
+    fun recalculateParts(text: String = _scriptText.value) {
+        if (text.isBlank()) {
+            _parts.value = emptyList()
+            return
+        }
+        viewModelScope.launch(Dispatchers.Default) {
+            val generatedParts = splitTextIntoSentenceParts(text, targetChars = 1000)
+            withContext(Dispatchers.Main) {
+                _parts.value = generatedParts
+                if (_selectedPartIndex.value >= generatedParts.size) {
+                    _selectedPartIndex.value = if (generatedParts.isEmpty()) -1 else generatedParts.size - 1
+                }
+            }
+        }
+    }
+
+    fun updateCurrentPartText(newPartText: String, partIndex: Int = _selectedPartIndex.value) {
+        val targetIndex = if (partIndex >= 0) partIndex else _selectedPartIndex.value
+        if (targetIndex in _parts.value.indices) {
+            val currentParts = _parts.value.toMutableList()
+            val updatedPart = currentParts[targetIndex].copy(
+                text = newPartText,
+                charCount = newPartText.length,
+                wordCount = if (newPartText.isBlank()) 0 else newPartText.trim().split("""\s+""".toRegex()).size
+            )
+            currentParts[targetIndex] = updatedPart
+            _parts.value = currentParts
+            
+            // Recombine full script from parts
+            val fullText = currentParts.joinToString("\n\n") { it.text }
+            onScriptTextChanged(fullText, isUserAction = true, skipRecalculateParts = true)
+        }
+    }
+
+    fun updateCurrentPartText(partIndex: Int, newPartText: String) {
+        updateCurrentPartText(newPartText, partIndex)
+    }
+
+    private fun splitTextIntoSentenceParts(fullText: String, targetChars: Int = 1000): List<ScriptPart> {
+        if (fullText.isBlank()) return emptyList()
+
+        val sentenceMatches = Regex("""[^.!?\n]+[.!?]*[\s"'\)]*""").findAll(fullText)
+            .map { it.value.trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+
+        val sentences = if (sentenceMatches.isNotEmpty()) sentenceMatches else listOf(fullText.trim())
+
+        val rawChunks = mutableListOf<String>()
+        var currentChunk = StringBuilder()
+
+        for (sentence in sentences) {
+            if (currentChunk.isEmpty()) {
+                currentChunk.append(sentence)
+            } else {
+                val potentialLength = currentChunk.length + 1 + sentence.length
+                if (currentChunk.length >= targetChars || potentialLength > targetChars + 250) {
+                    rawChunks.add(currentChunk.toString().trim())
+                    currentChunk = StringBuilder(sentence)
+                } else {
+                    currentChunk.append(" ").append(sentence)
+                }
+            }
+        }
+
+        if (currentChunk.isNotBlank()) {
+            rawChunks.add(currentChunk.toString().trim())
+        }
+
+        return rawChunks.mapIndexed { idx, chunkText ->
+            ScriptPart(
+                index = idx + 1,
+                text = chunkText,
+                charCount = chunkText.length,
+                wordCount = if (chunkText.isBlank()) 0 else chunkText.trim().split("""\s+""".toRegex()).size
+            )
+        }
+    }
+
 
     private var initialText: String = ""
 
@@ -147,6 +305,7 @@ class ScriptEditorViewModel(
 
             initialText = documentText
             _scriptText.value = documentText
+            recalculateParts(documentText)
             _isDirty.value = false
 
             // Asynchronous Off-Thread Stats Calculation for Large Files
@@ -187,7 +346,7 @@ class ScriptEditorViewModel(
             .launchIn(viewModelScope)
     }
 
-    fun onScriptTextChanged(newText: String, isUserAction: Boolean = true) {
+    fun onScriptTextChanged(newText: String, isUserAction: Boolean = true, skipRecalculateParts: Boolean = false) {
         val oldText = _scriptText.value
         if (oldText != newText) {
             val currentTime = System.currentTimeMillis()
@@ -205,6 +364,9 @@ class ScriptEditorViewModel(
                 }
             }
             _scriptText.value = newText
+            if (!skipRecalculateParts && _selectedPartIndex.value == -1) {
+                recalculateParts(newText)
+            }
             _isDirty.value = (newText != initialText)
             if (_hasGeneratedAudio.value && _isDirty.value) {
                 _showAudioRegenWarning.value = true
@@ -366,66 +528,126 @@ class ScriptEditorViewModel(
     }
 
     // --- Advanced Features: Case Converters, Smart Auto-Format, Bracket Cues Cleaner ---
-    fun convertCase(mode: TextCaseMode) {
+    /**
+     * Convert text case.
+     *
+     * @param selectionStart If a selection exists (selectionStart < selectionEnd),
+     *   only the selected portion is converted. Otherwise the full text is converted.
+     */
+    fun convertCase(mode: TextCaseMode, selectionStart: Int = -1, selectionEnd: Int = -1) {
         val current = _scriptText.value
         if (current.isBlank()) return
 
+        val hasSelection = selectionStart >= 0 && selectionEnd > selectionStart && selectionEnd <= current.length
+
         viewModelScope.launch(Dispatchers.Default) {
-            val result = when (mode) {
-                TextCaseMode.UPPERCASE -> current.uppercase()
-                TextCaseMode.LOWERCASE -> current.lowercase()
-                TextCaseMode.TITLE_CASE -> current.split(" ").joinToString(" ") { word ->
+            fun applyCase(text: String): String = when (mode) {
+                TextCaseMode.UPPERCASE -> text.uppercase()
+                TextCaseMode.LOWERCASE -> text.lowercase()
+                TextCaseMode.TITLE_CASE -> text.split(" ").joinToString(" ") { word ->
                     word.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                 }
-                TextCaseMode.SENTENCE_CASE -> current.lowercase().split(". ").joinToString(". ") { sentence ->
+                TextCaseMode.SENTENCE_CASE -> text.lowercase().split(". ").joinToString(". ") { sentence ->
                     sentence.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                 }
             }
+
+            val result: String
+            if (hasSelection) {
+                val before = current.substring(0, selectionStart)
+                val selected = current.substring(selectionStart, selectionEnd)
+                val after = current.substring(selectionEnd)
+                result = before + applyCase(selected) + after
+            } else {
+                result = applyCase(current)
+            }
+
             withContext(Dispatchers.Main) {
                 onScriptTextChanged(result)
-                _userMessage.value = "Converted case to ${mode.name.lowercase().replace("_", " ")}"
+                val scopeLabel = if (hasSelection) "selection" else "full script"
+                _userMessage.value = "Converted case to ${mode.name.lowercase().replace("_", " ")} ($scopeLabel)"
             }
         }
     }
 
-    fun removeBracketCues() {
+    /**
+     * Remove speaker notes / bracket cues from the script.
+     *
+     * @param selectionStart If a selection exists (selectionStart < selectionEnd),
+     *   only the selected portion is processed. Otherwise the full text is processed.
+     */
+    fun removeBracketCues(selectionStart: Int = -1, selectionEnd: Int = -1) {
         val current = _scriptText.value
         if (current.isBlank()) return
 
+        val hasSelection = selectionStart >= 0 && selectionEnd > selectionStart && selectionEnd <= current.length
+
         viewModelScope.launch(Dispatchers.Default) {
-            val cleaned = current.replace("\\[.*?\\]".toRegex(), "").replace("\\(.*?\\)".toRegex(), "").replace(" +".toRegex(), " ").trim()
+            val result: String
+            if (hasSelection) {
+                val before = current.substring(0, selectionStart)
+                val selected = current.substring(selectionStart, selectionEnd)
+                val after = current.substring(selectionEnd)
+                val cleaned = selected.replace("\\[.*?\\]".toRegex(), "").replace("\\(.*?\\)".toRegex(), "").replace(" +".toRegex(), " ").trim()
+                result = before + cleaned + after
+            } else {
+                result = current.replace("\\[.*?\\]".toRegex(), "").replace("\\(.*?\\)".toRegex(), "").replace(" +".toRegex(), " ").trim()
+            }
             withContext(Dispatchers.Main) {
-                onScriptTextChanged(cleaned)
-                _userMessage.value = "Removed speaker notes and bracket cues"
+                onScriptTextChanged(result)
+                val scopeLabel = if (hasSelection) "selection" else "full script"
+                _userMessage.value = "Removed speaker notes and bracket cues ($scopeLabel)"
             }
         }
     }
 
-    fun smartAutoFormat() {
+    /**
+     * Apply smart auto-formatting to the script.
+     *
+     * @param selectionStart If a selection exists (selectionStart < selectionEnd),
+     *   only the selected portion is formatted. Otherwise the full text is formatted.
+     */
+    fun smartAutoFormat(selectionStart: Int = -1, selectionEnd: Int = -1) {
         val current = _scriptText.value
         if (current.isBlank()) return
 
-        viewModelScope.launch(Dispatchers.Default) {
-            var formatted = current
-                .replace("\r\n", "\n")
-                .replace("“", "\"").replace("”", "\"")
-                .replace("‘", "'").replace("’", "'")
-                .replace(" ,", ",").replace(" .", ".").replace(" !", "!").replace(" ?", "?")
-                .replace(",([^\\s\\d])".toRegex(), ", $1")
-                .replace("\\.([^\\s\\d\\.])".toRegex(), ". $1")
-                .replace("[ \\t]+".toRegex(), " ")
-                .replace("\n{3,}".toRegex(), "\n\n")
-                .trim()
+        val hasSelection = selectionStart >= 0 && selectionEnd > selectionStart && selectionEnd <= current.length
 
-            formatted = formatted.split("\n").joinToString("\n") { line ->
-                line.split(". ").joinToString(". ") { sentence ->
-                    sentence.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        viewModelScope.launch(Dispatchers.Default) {
+            fun applyFormat(text: String): String {
+                var formatted = text
+                    .replace("\r\n", "\n")
+                    .replace("“", "\"").replace("”", "\"")
+                    .replace("‘", "'").replace("’", "'")
+                    .replace(" ,", ",").replace(" .", ".").replace(" !", "!").replace(" ?", "?")
+                    .replace(",([^\\s\\d])".toRegex(), ", \$1")
+                    .replace("\\.([^\\s\\d\\.])".toRegex(), ". \$1")
+                    .replace("[ \\t]+".toRegex(), " ")
+                    .replace("\n{3,}".toRegex(), "\n\n")
+                    .trim()
+
+                formatted = formatted.split("\n").joinToString("\n") { line ->
+                    line.split(". ").joinToString(". ") { sentence ->
+                        sentence.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                    }
                 }
+                return formatted
+            }
+
+            val result: String
+            if (hasSelection) {
+                val before = current.substring(0, selectionStart)
+                val selected = current.substring(selectionStart, selectionEnd)
+                val after = current.substring(selectionEnd)
+                result = before + applyFormat(selected) + after
+            } else {
+                result = applyFormat(current)
             }
 
             withContext(Dispatchers.Main) {
-                onScriptTextChanged(formatted)
-                _userMessage.value = "Applied smart script auto-formatting"
+                onScriptTextChanged(result)
+                val scopeLabel = if (hasSelection) "selection" else "full script"
+                _userMessage.value = "Applied smart script auto-formatting ($scopeLabel)"
             }
         }
     }

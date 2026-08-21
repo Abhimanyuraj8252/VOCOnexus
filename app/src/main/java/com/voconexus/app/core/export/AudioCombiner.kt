@@ -7,6 +7,14 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.RandomAccessFile
 
+private fun logExport(message: String) {
+    try {
+        android.util.Log.d("VocoNexusExport", message)
+    } catch (_: Throwable) {
+        println("[VocoNexusExport] $message")
+    }
+}
+
 class AudioCombiner {
 
     data class WavHeaderInfo(
@@ -22,7 +30,12 @@ class AudioCombiner {
         targetOutputFile: File,
         onProgress: (progressFraction: Float) -> Unit = {}
     ): Boolean = withContext(Dispatchers.IO) {
-        if (sourceFiles.isEmpty()) return@withContext false
+        if (sourceFiles.isEmpty()) {
+            logExport("combineWavFiles failed: sourceFiles list is empty")
+            return@withContext false
+        }
+
+        logExport("Starting combineWavFiles with ${sourceFiles.size} source files to ${targetOutputFile.absolutePath}")
 
         // Temporary output file
         val tempOutputFile = File(targetOutputFile.parentFile, "${targetOutputFile.name}.tmp")
@@ -32,17 +45,22 @@ class AudioCombiner {
 
         try {
             val headers = sourceFiles.map { file ->
-                parseWavHeader(file) ?: return@withContext false
+                parseWavHeader(file) ?: run {
+                    logExport("Failed to parse WAV header for file: ${file.absolutePath}")
+                    return@withContext false
+                }
             }
 
             // Verify Format Compatibility
             val firstHeader = headers.first()
+            logExport("First chunk header: sampleRate=${firstHeader.sampleRate}, channels=${firstHeader.channels}, bitsPerSample=${firstHeader.bitsPerSample}")
+
             for (header in headers) {
                 if (header.sampleRate != firstHeader.sampleRate ||
                     header.channels != firstHeader.channels ||
                     header.bitsPerSample != firstHeader.bitsPerSample
                 ) {
-                    // Formats incompatible for direct lossless PCM concatenation
+                    logExport("Incompatible formats detected: expected sampleRate=${firstHeader.sampleRate}, channels=${firstHeader.channels}, got sampleRate=${header.sampleRate}, channels=${header.channels}")
                     return@withContext false
                 }
             }
@@ -51,8 +69,9 @@ class AudioCombiner {
             sink.open(tempOutputFile, firstHeader.sampleRate, firstHeader.channels)
 
             val totalPcmBytes = headers.sumOf { it.pcmDataLength }
-            var bytesCopiedTotal = 0L
+            logExport("Header format checks passed. Total PCM payload to copy: $totalPcmBytes bytes across ${headers.size} files")
 
+            var bytesCopiedTotal = 0L
             val buffer = ByteArray(8192)
 
             for ((index, sourceFile) in sourceFiles.withIndex()) {
@@ -80,7 +99,11 @@ class AudioCombiner {
 
             sink.flushAndClose()
 
+            val tempSize = if (tempOutputFile.exists()) tempOutputFile.length() else 0L
+            logExport("Finished writing PCM data to temp file: ${tempOutputFile.absolutePath} (size: $tempSize bytes)")
+
             if (!tempOutputFile.exists() || tempOutputFile.length() <= 44) {
+                logExport("Temp combined WAV file is invalid or too small: $tempSize bytes")
                 tempOutputFile.delete()
                 return@withContext false
             }
@@ -95,8 +118,12 @@ class AudioCombiner {
                 tempOutputFile.delete()
             }
 
+            val finalSize = if (targetOutputFile.exists()) targetOutputFile.length() else 0L
+            logExport("WAV combine completed successfully. Target file size: $finalSize bytes (${finalSize / (1024 * 1024)} MB)")
+
             return@withContext targetOutputFile.exists() && targetOutputFile.length() > 44
         } catch (e: Exception) {
+            logExport("Exception in combineWavFiles: ${e.message}")
             if (tempOutputFile.exists()) {
                 tempOutputFile.delete()
             }

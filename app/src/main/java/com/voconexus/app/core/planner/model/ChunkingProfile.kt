@@ -8,19 +8,23 @@ enum class SentenceSplitPolicy {
 
 data class ChunkingProfile(
     val profileId: String = "kokoro-default",
-    val preferredTokenCount: Int = 120,
-    val softMaxTokenCount: Int = 180,
-    val hardMaxTokenCount: Int = 250,
-    val preferredDurationMs: Long = 12000L,
-    val softMaxDurationMs: Long = 20000L,
-    val hardMaxDurationMs: Long = 30000L,
+    // Target ~500 characters per chunk (≈100 tokens at ~5 chars/token).
+    // The planner will never split a sentence mid-way; it completes the current
+    // sentence before closing a chunk — even if that pushes slightly over preferred.
+    val preferredTokenCount: Int = 100,   // ~500 chars
+    val softMaxTokenCount: Int = 150,     // ~750 chars — finalize chunk here
+    val hardMaxTokenCount: Int = 200,     // ~1000 chars — oversized split fallback
+    val preferredDurationMs: Long = 10000L,
+    val softMaxDurationMs: Long = 16000L,
+    val hardMaxDurationMs: Long = 24000L,
     val preserveParagraphs: Boolean = true,
     val preserveDialogue: Boolean = true,
-    val allowSentenceSplitting: Boolean = false
+    val allowSentenceSplitting: Boolean = false  // Never split mid-sentence
 )
 
 data class ChunkingConfig(
     val profile: ChunkingProfile = ChunkingProfile(),
-    val targetPartDurationMs: Long = 600000L, // 10 minutes per Part (5-15 min target)
+    val targetPartCharCount: Int = 1000, // ~1,000 characters per Part (sentence boundary aligned)
+    val targetPartDurationMs: Long = 60000L, // ~1 minute per Part
     val sentenceSplitPolicy: SentenceSplitPolicy = SentenceSplitPolicy.CLAUSE_THEN_WHITESPACE
 )
