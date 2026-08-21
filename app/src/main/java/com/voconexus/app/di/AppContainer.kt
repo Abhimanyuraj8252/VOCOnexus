@@ -72,9 +72,22 @@ interface AppContainer {
     val targetDurationPlanner: com.voconexus.app.core.domain.duration.TargetDurationPlanner
     val wsolaAudioProcessor: com.voconexus.app.core.dsp.WsolaAudioProcessor
     val speechPreviewManager: com.voconexus.app.core.tts.preview.SpeechPreviewManager
+    val apiVaultManager: com.voconexus.app.core.security.ApiVaultManager
+    val dynamicCatalogFetcher: com.voconexus.app.core.network.DynamicCatalogFetcher
 }
 
 class AppContainerImpl(private val context: Context) : AppContainer {
+    override val apiVaultManager: com.voconexus.app.core.security.ApiVaultManager by lazy {
+        com.voconexus.app.core.security.ApiVaultManager(context)
+    }
+
+    override val dynamicCatalogFetcher: com.voconexus.app.core.network.DynamicCatalogFetcher by lazy {
+        com.voconexus.app.core.network.DynamicCatalogFetcher(
+            apiVaultManager = apiVaultManager,
+            modelDao = database.ttsModelDao(),
+            voiceDao = database.ttsVoiceDao()
+        )
+    }
     override val database: VocoNexusDatabase by lazy {
         VocoNexusDatabase.getInstance(context)
     }

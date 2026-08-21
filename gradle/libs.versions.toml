@@ -15,10 +15,10 @@ jetbrainsKotlinPluginSerialization = "2.2.21"
 kotlinxSerializationCore = "1.9.0"
 navigation3Ui = "1.0.1"
 navigation3Runtime = "1.0.1"
-adaptive = "1.3.+"
-adaptiveLayout = "1.3.+"
-adaptiveNavigation3 = "1.3.+"
-lifecycleViewmodelNavigation3 = "2.11.+"
+adaptive = "1.3.0"
+adaptiveLayout = "1.3.0"
+adaptiveNavigation3 = "1.3.0"
+lifecycleViewmodelNavigation3 = "2.11.0"
 roomRuntime = "2.7.0"
 roomKtx = "2.7.0"
 roomCompiler = "2.7.0"
@@ -45,6 +45,7 @@ material = "1.11.0"
 workRuntimeKtx = "2.9.1"
 media3 = "1.4.1"
 navigationCompose = "2.8.5"
+securityCrypto = "1.1.0-alpha06"
 
 [libraries]
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
@@ -100,6 +101,7 @@ moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin", version.re
 moshi-kotlin-codegen = { group = "com.squareup.moshi", name = "moshi-kotlin-codegen", version.ref = "moshiKotlinCodegen" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

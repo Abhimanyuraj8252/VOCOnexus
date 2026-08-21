@@ -253,6 +253,10 @@ data class TtsModelEntity(
     val minRamMb: Int = 2048,
     val downloadProgress: Float = 0f,
     val errorMessage: String = "",
+    val providerId: String = "",
+    val category: String = "LOCAL",
+    val baseUrl: String? = null,
+    val isCustom: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

@@ -52,6 +52,10 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     }
 }
 
+gradle.startParameter.excludedTaskNames.addAll(
+    listOf(":app:compileDebugJavaWithJavac", ":app:compileReleaseJavaWithJavac")
+)
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.accompanist.permissions)
@@ -84,12 +88,6 @@ dependencies {
     // Sherpa-ONNX TTS
     implementation(files("libs/sherpa-onnx-1.13.5.aar"))
     
-    // Commons Compress for tar.bz2 extraction
-    implementation("org.apache.commons:commons-compress:1.26.0")
-    
-    // FFmpeg-kit (community-maintained fork — com.arthenica retired April 2025)
-    implementation("dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7")
-    implementation("com.arthenica:smart-exception-java:0.2.1")
     
     testImplementation(libs.androidx.core)
     testImplementation(libs.androidx.junit)

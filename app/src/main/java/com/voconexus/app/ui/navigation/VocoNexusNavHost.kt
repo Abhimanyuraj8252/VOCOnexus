@@ -212,7 +212,9 @@ fun VocoNexusNavHost(
                 factory = com.voconexus.app.ui.screens.models.ModelManagerViewModel.provideFactory(
                     ttsRepository = container.ttsRepository,
                     deviceEvaluator = container.deviceEvaluator,
-                    prefsManager = userPrefsManager
+                    prefsManager = userPrefsManager,
+                    apiVaultManager = container.apiVaultManager,
+                    dynamicCatalogFetcher = container.dynamicCatalogFetcher
                 )
             )
 
